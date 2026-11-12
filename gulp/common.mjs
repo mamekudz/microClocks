@@ -115,10 +115,10 @@ export function serveStatic(root, port) {
  * @param {string} url
  */
 export async function openUrl(url) {
-	try {
-		const opened = await Ide.Vscode.ExecuteCommand('workbench.action.openBrowserEditor', { url, inactive: false });
-		if (opened?.ok) return;
-	} catch { /* Kein IDE-Host, Standardbrowser nehmen. */ }
+	const opened = await Ide.Vscode.ExecuteCommand('workbench.action.openBrowserEditor', { url, inactive: false });
+	if (opened?.ok) return;
+	// command-not-allowed: Freigabe in .vscode/settings.json (microgulp.ideCommandAllowlist) greift erst nach "Fenster neu laden".
+	Log(`Kein Tab in der IDE (${opened?.code}: ${opened?.message}), öffne den Standardbrowser.`);
 	spawn('cmd', ['/c', 'start', '', url], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
 }
 
