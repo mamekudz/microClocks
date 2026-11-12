@@ -21,8 +21,9 @@ CLOCK = os.path.join(REPO, "bangle", "FlyClock.js")
 
 FRAME = 30
 SIZE = 22
-# Posen: sitzend, drei Flügelstellungen im Flug, fünf Laufbilder. Diagonale Posen liegen 10 Bilder weiter.
-POSES = [0, 1, 2, 3, 5, 6, 7, 8, 9]
+# Posen: sitzend mit eingeklappten Flügeln, drei Flügelstellungen im Flug, fünf Laufbilder.
+# Diagonale Posen liegen 10 Bilder weiter.
+POSES = [4, 1, 2, 3, 5, 6, 7, 8, 9]
 TRANSPARENT, HALO, WING, EYE = 0, 1, 2, 3
 
 
@@ -100,7 +101,7 @@ def main():
     block = (
         "// <sprites> erzeugt von bangle/tools/flysprites.py aus shared/assets/fly/flyex.png\n"
         f"const SPRITE_SIZE = {SIZE};\n"
-        "// [Pose][Richtung]: Pose 0 sitzt, 1–3 Flügelschlag, 4–8 Laufen; Richtung 0 = Norden, im Uhrzeigersinn.\n"
+        "// [Pose][Richtung]: Pose 0 sitzt mit eingeklappten Flügeln, 1–3 Flügelschlag, 4–8 Laufen; Richtung 0 = Norden, im Uhrzeigersinn.\n"
         "const SPRITES = [\n" + ",\n".join(rows) + "\n];\n"
         "// </sprites>"
     )
