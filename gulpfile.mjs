@@ -11,6 +11,9 @@ import * as tasks from './gulp/tasks.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const bangleScripts = () => listClockScripts(root, join(root, 'bangle'));
+// Pro Skript ein eigenes Namensfeld, weil Formularfelder ihren Vorgabewert nicht aus einem anderen Feld übernehmen können.
+const nameFieldId = (script) => 'name_' + script.replace(/^.*\//, '').replace(/\.js$/i, '').replace(/[^A-Za-z0-9_]/g, '_').slice(0, 40);
+const clockTitle = (script) => script.replace(/^.*\//, '').replace(/\.js$/i, '').replace(/[_-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2');
 
 // ---------------------------------------------------------------- Bangle.js
 
@@ -20,7 +23,7 @@ export async function programBangle() {
 	const message = await startNativeProgrammer({
 		root,
 		script,
-		name: GetParameter('name', ''),
+		name: String(GetParameter(nameFieldId(script), '') ?? '').trim() || clockTitle(script),
 		install: flag(GetParameter('install', false)),
 		previewOnly: flag(GetParameter('previewOnly', true)),
 		start: flag(GetParameter('start', false)),
@@ -53,13 +56,14 @@ programBangle.µParameters = () => {
 			default: scripts[0]?.value,
 			required: true,
 		},
-		{
-			id: 'name',
+		...scripts.map(({ value }) => ({
+			id: nameFieldId(value),
 			type: 'text',
 			label: 'Name auf der Uhr',
-			description: 'Leer lassen, dann wird der Dateiname verwendet.',
-			placeholder: 'Bahn Uhr',
-		},
+			description: 'Vorbelegt aus dem Dateinamen des gewählten Skripts.',
+			default: clockTitle(value),
+			visibleWhen: { script: value },
+		})),
 		{
 			id: 'install',
 			type: 'boolean',
@@ -75,10 +79,11 @@ programBangle.µAgent = {
 	"purpose": "Preview a clock script from bangle/ or transfer it to the selected Bangle with backup and read-back verification.",
 	"prerequisites": [
 		"Clock script below bangle/, gulp-mu-gulp-api and the local microGulp experimental API.",
-		"For transfer: dashboard confirmations, .microgulp/native-device.json, Python device runtime and accessible BLE UART services."
+		"For transfer: dashboard confirmations, Python device runtime, a Bangle advertising over BLE (not connected to a phone) and accessible BLE UART services."
 	],
 	"sideEffects": [
-		"Preview performs no device access. Confirmed connection can interrupt running code.",
+		"Preview performs no device access. Transfer first scans for Bangles and stores the chosen watch in .microgulp/native-device.json.",
+		"Confirmed connection can interrupt running code.",
 		"Confirmed transfer writes clock files; install can change app information and the default clock; start requests app execution."
 	],
 	"artifacts": [

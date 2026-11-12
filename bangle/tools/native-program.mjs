@@ -23,24 +23,46 @@ export async function startNativeProgrammer({ root, script, name = '', install =
 		return 'Vorschau fertig. Keine Verbindung und keine Daten auf die Uhr übertragen.';
 	}
 	if (!api.IsMicroGulp()) throw new Error('Übertragung nur aus dem Dashboard mit manueller Bestätigung.');
-	let { readFile } = await import('node:fs/promises');
+	let { readFile, writeFile } = await import('node:fs/promises');
 	let { join } = await import('node:path');
-	let device = JSON.parse(await readFile(join(root, '.microgulp/native-device.json'), 'utf8'));
-	if (device.transport !== 'ble' || !device.id || !device.name || !['public', 'random'].includes(device.addressType)) throw new Error('Keine gültige lokale Geräteauswahl.');
-	report(0.03, 'Auf Bestätigung für Verbindung und Sicherung warten');
-	let permission = await api.ShowConfirmMessage({ title: 'Programmierverbindung und Sicherung', presentation: 'webview',
-		message: device.name + ': Verbindung öffnen und vorhandene Dateien sichern? Dafür werden Konsolenbefehle gesendet; laufender Code kann unterbrochen werden. Noch keine Speicherdateien überschreiben. Vor der Übertragung folgt eine zweite Bestätigung.' });
-	if (permission?.button !== 'yes') {
-		report(1, 'Abgebrochen - keine Verbindung zur Uhr');
-		return 'Abgebrochen. Keine Verbindung zur Uhr.';
-	}
+	let deviceFile = join(root, '.microgulp/native-device.json');
+	let known = null;
+	try { known = JSON.parse(await readFile(deviceFile, 'utf8')); } catch { /* Noch keine Uhr gewählt. */ }
+	let device;
 	let keys = ['MICROGULP_EXPERIMENTAL_DEVICES', 'MICROGULP_DEVICE_PYTHON'], previous = keys.map((_key) => process.env[_key]);
 	process.env.MICROGULP_EXPERIMENTAL_DEVICES = '1';
 	process.env.MICROGULP_DEVICE_PYTHON = 'C:/Projects/microGulp/tmp/device-runtime/Scripts/python.exe';
 	try {
 		let result = await api.WithNativeDevices(async (_devices) => {
+			// Suchen sendet nichts an die Uhr; verbunden wird erst nach der Bestätigung.
+			report(0.02, 'Nach Bangles suchen');
+			let found = (await _devices.Scan({ seconds: 6 }))
+				.filter((_found) => /bangle/i.test(_found.name) && ['public', 'random'].includes(_found.addressType))
+				.sort((_a, _b) => (_b.rssi ?? -999) - (_a.rssi ?? -999));
+			if (!found.length) throw new Error('Keine Bangle gefunden. Uhr einschalten, in Reichweite bringen und die Verbindung zu Handy oder Gadgetbridge trennen.');
+			let answer = await api.RequestForm({
+				title: 'Uhr wählen',
+				submitLabel: 'Weiter',
+				cancelable: true,
+				fields: [{
+					id: 'device',
+					type: 'select',
+					label: 'Bangle',
+					options: found.map((_found) => ({ value: _found.id, label: _found.name + ' (' + _found.id + ', ' + _found.rssi + ' dBm)' })),
+					default: found.some((_found) => _found.id === known?.id) ? known.id : found[0].id,
+					required: true,
+				}],
+			});
+			let chosen = answer && found.find((_found) => _found.id === answer.device);
+			if (!chosen) return { state: 'cancelled-before-connect' };
+			device = { transport: 'ble', id: chosen.id, name: chosen.name, addressType: chosen.addressType };
+			await writeFile(deviceFile, JSON.stringify(device));
+			report(0.04, 'Auf Bestätigung für Verbindung und Sicherung warten');
+			let permission = await api.ShowConfirmMessage({ title: 'Programmierverbindung und Sicherung', presentation: 'webview',
+				message: device.name + ': Verbindung öffnen und vorhandene Dateien sichern? Dafür werden Konsolenbefehle gesendet; laufender Code kann unterbrochen werden. Noch keine Speicherdateien überschreiben. Vor der Übertragung folgt eine zweite Bestätigung.' });
+			if (permission?.button !== 'yes') return { state: 'cancelled-before-connect' };
 			report(0.06, 'Bluetooth-Verbindung öffnen');
-			let services = await _devices.ConnectKnown(device);
+			let services = await _devices.Connect(device);
 			report(0.1, 'Bluetooth-Dienste prüfen');
 			ValidateUartServices(services, BANGLE_UART);
 			let uart = new BangleUart(_devices);
@@ -58,6 +80,10 @@ export async function startNativeProgrammer({ root, script, name = '', install =
 				} });
 			} finally { report(progressValue, 'Verbindung schließen'); await uart.Close(); }
 		});
+		if (result.state === 'cancelled-before-connect') {
+			report(1, 'Abgebrochen - keine Verbindung zur Uhr');
+			return 'Abgebrochen. Keine Verbindung zur Uhr.';
+		}
 		report(1, result.state === 'cancelled-before-storage-write' ? 'Abgebrochen - keine Dateien geschrieben' : 'Übertragung geprüft und Verbindung geschlossen');
 		return result.state === 'cancelled-before-storage-write' ? 'Abgebrochen. Sicherung vorhanden, keine Speicherdateien geschrieben.' : 'Dateien übertragen und bytegenau zurückgelesen. ' + (plan.start ? 'Start angefordert; Anzeige auf der Uhr noch prüfen.' : 'Kein App-Start angefordert.') + '\nSicherung: ' + result.backupFile;
 	} finally { keys.forEach((_key, _index) => { if (previous[_index] === undefined) delete process.env[_key]; else process.env[_key] = previous[_index]; }); }

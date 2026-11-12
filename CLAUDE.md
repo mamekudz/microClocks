@@ -65,7 +65,8 @@ Gewünscht ist ausdrücklich eine einfache Kopie, kein NAS-Rezept und keine ZIP-
 ## Bangle.js 2
 
 - Display 176 × 176, 3-Bit-Farben (MIP). Uhren nutzen `Bangle.setUI({ mode: "clock", remove })` für Fast Load; der ganze Code steht in einem `{ … }`-Block.
-- `programBangle` überträgt genau eine JS-Datei; die Uhr-Id ergibt sich aus dem Dateinamen. `listClockScripts` überspringt `tools`, `assets`, `node_modules`, `.microgulp`, `.git`.
+- `programBangle` überträgt genau eine JS-Datei; die Uhr-Id ergibt sich aus dem Dateinamen. Der Name auf der Uhr hat pro Skript ein eigenes Feld (`name_<Datei>`, per `visibleWhen` nur zum gewählten Skript sichtbar), vorbelegt aus dem Dateinamen („FlyClock“ → „Fly Clock“).
+- Bei der Übertragung sucht `bangle/tools/native-program.mjs` per Bluetooth nach Bangles, lässt eine wählen (die zuletzt benutzte ist vorausgewählt) und speichert sie in `.microgulp/native-device.json`. Erst danach folgen die Bestätigungen für Verbindung/Sicherung und fürs Schreiben. Die Uhr muss eingeschaltet und darf nicht mit Handy/Gadgetbridge verbunden sein. `listClockScripts` überspringt `tools`, `assets`, `node_modules`, `.microgulp`, `.git`.
 - Espruino schläft automatisch, wenn kein Intervall läuft. Touch-Ereignisse kommen bei gesperrter Uhr nicht an.
 
 ### Fliegenuhr (`bangle/FlyClock.js`)
