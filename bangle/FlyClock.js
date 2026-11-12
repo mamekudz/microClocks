@@ -53,8 +53,9 @@ const FONT = [
   ["010", "101", "010", "101", "010"],
   ["010", "101", "011", "001", "110"]
 ];
-// Flügelschlag wie im Simulator: Posen 1–3.
-const FLAP = [1, 1, 2, 2, 2, 3, 3, 3, 2, 2, 2];
+// Flügelschlag: Die Flugbilder 1–3 unterscheiden sich nur um wenige Pixel und wirken auf dem trägen Display starr,
+// darum wechseln gespreizte (2, 3) und eingeklappte Flügel (0) mit jedem Bild.
+const FLAP = [2, 0, 3, 0];
 // Laufschritte wie im Simulator (Frames 5, 6, 7, 5, 8, 9): Posen 4–8.
 const WALK = [4, 5, 6, 4, 7, 8];
 
@@ -163,6 +164,7 @@ function takeNearest(list, target) {
 
 // Fliegen auf wegfallenden Zellen fliegen zu neuen Zellen, der Rest verlässt die Uhr.
 function sync() {
+  hideWidgets();
   const next = slotsFor(new Date());
   const free = [];
   const taken = {};
@@ -284,6 +286,32 @@ function scheduleMinute() {
   }, 60000 - (Date.now() % 60000) + 20);
 }
 
+// Statusleiste ohne widget_utils ausblenden (das Modul fehlt bei Einzeldatei-Übertragung):
+// Ohne draw und area zeichnet Bangle.drawWidgets() beim Entsperren weder Widgets noch Leistenhintergrund.
+function hideWidgets() {
+  if (!global.WIDGETS) return;
+  for (const id in WIDGETS) {
+    const w = WIDGETS[id];
+    if (w.hiddenDraw) continue;
+    w.hiddenDraw = w.draw;
+    w.hiddenArea = w.area;
+    w.draw = () => { };
+    w.area = "";
+  }
+}
+
+function showWidgets() {
+  if (!global.WIDGETS) return;
+  for (const id in WIDGETS) {
+    const w = WIDGETS[id];
+    if (!w.hiddenDraw) continue;
+    w.draw = w.hiddenDraw;
+    w.area = w.hiddenArea;
+    delete w.hiddenDraw;
+    delete w.hiddenArea;
+  }
+}
+
 // Aufgeschreckte Fliegen springen weg, landen wieder in der Nähe ihrer Zelle und laufen zurück.
 function scare(fly, away, reach) {
   const flee = { x: fly.x + Math.cos(away) * reach, y: fly.y + Math.sin(away) * reach };
@@ -335,13 +363,13 @@ Bangle.setUI({
     minuteTimer = undefined;
     Bangle.removeListener("touch", onTouch);
     Bangle.removeListener("accel", onAccel);
-    try { require("widget_utils").show(); } catch (e) { }
+    showWidgets();
   }
 });
 Bangle.on("touch", onTouch);
 Bangle.on("accel", onAccel);
 Bangle.loadWidgets();
-try { require("widget_utils").hide(); } catch (e) { }
+hideWidgets();
 g.setBgColor(0, 0, 0);
 g.clear();
 sync();

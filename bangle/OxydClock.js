@@ -81,7 +81,18 @@ function drawClock() {
   g.flip();
 }
 
+// Statusleiste ausblenden: Ohne draw und area zeichnet Bangle.drawWidgets() beim Entsperren nichts.
+// Die Uhr lädt beim Verlassen neu (setUI ohne remove), daher kein Wiederherstellen nötig.
+function hideWidgets() {
+  if (!global.WIDGETS) return;
+  for (const id in WIDGETS) {
+    WIDGETS[id].draw = () => { };
+    WIDGETS[id].area = '';
+  }
+}
+
 function startTimers() {
+  hideWidgets();
   clearTimers();
   shown = '';
   drawClock();
@@ -101,6 +112,7 @@ Bangle.on('lcdPower', (on) => {
 });
 
 Bangle.setUI('clock');
+hideWidgets();
 g.setBgColor(0, 0, 0);
 g.clear();
 startTimers();
