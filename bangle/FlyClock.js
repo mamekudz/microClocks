@@ -1,26 +1,50 @@
-// Fliegenuhr: Sieben-Segment-Ziffern, eine Fliege pro Segment. Stunden oben, Minuten unten.
+// Fliegenuhr: 3×5-Ziffern mit ausgedünnten Zellen, eine Fliege pro Zelle. Stunden oben, Minuten unten.
 // Sitzende Fliegen bewegen sich nicht. Ohne fliegende Fliege läuft kein Intervall,
 // die Uhr schläft bis zum nächsten Minutenwechsel oder einer Berührung.
 {
+// <sprites> erzeugt von bangle/tools/flysprites.py aus shared/assets/fly/flyex.png
+const SPRITE_SIZE = 22;
+// [Pose][Richtung]: Pose 0 sitzt, 1–3 Flügelschlag; Richtung 0 = Norden, im Uhrzeigersinn.
+const SPRITES = [
+  ["AAAAAAAAAAAAAAAAAVFQAAAAEVEAAAABQFAAAAVTMVQAAEEAEEAABUAAVAAAFCIFAAAFKioUAAFKoqhQABCoCoEAASqAqhAAFCACBQAAUAABQAAEVAVEAABUVUVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAAAAAAABVFQAAAVQVEAAAUAEBUAAEqoMBAABKqgxQAAUqoAQABUAAoVAAQQAKgQAFUACoEAABAAqFAAAUAKhAAABQAoQAAAFUQUAAAAEVUAAAABEAAAAAAVAAAAAAAAAAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAAAAAAABVAAAAAVQUVAAAESBUQAABQqFEAAAEqoFVAAFCqAEQABACoMUAAQAAAEAAEAKgxQABQqgBEAAEqoFVAAFCoUQAABEgVEAAAVQUVAAAAFUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAVAAAAAAEQAAAAABFVAAAAFUQUAAAFAChAAAFACoQAABAAqFAAVQAKgQAEEACoEABUAAoVAABSqgBAAASqoMUAAEqoMBAABQAQFQAAFUFRAAAABVFQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFRVRUAABFQFRAAAUAABQAAUIAIFAAEqgKoQABCoCoEAAUqiqFAABSoqFAAAFCIFAAAFQABUAABBABBAAAVTMVQAAAFAUAAAABFRAAAAAVFQAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAAAAAAAAFQAAAAABEAAAABVRAAAABQRVAAAASgAUAAAEqABQAAFKgAEAABCoABVAAQqAAQQAFSgABUAAQCqhQAAUwqqEAAEDCqhAABUBABQAABFQVQAAAVFUAAAAAAAAAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABVAAAAFRQVQAABFQhEAAARSoFAAFVCqhAABEAqgUAAUwqABAABAAAAQABTCoAEAARAKoFAAFVCqhAAABFKgUAAARUIRAAAFRQVQAAAAFUAAAAAAAAAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVFUAAAAEVBVAAAVAQAUAAEDCqhAABTCqoQAAEAqoUAAFSgABUABCoABBAAQqAAVQAFKgAEAAASoAFAAAEoAFAAABQRVAAAAFVEAAAAAARAAAAAAFQAAAAAAAAAAAAAAAAAA=="],
+  ["AAAAAAAAAAAAAAAAAVFQAAAAEVEAAAFVQFVQAFATMQFABCgACgQASqgKqEAEqqKqhABCqAqgQAVAAABUABBAAEEAAVQABVAAAQAAEAAAUQARQAAEVAVEAABUVUVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==", "AAFVAAAAAFAUAAAAFKhAAAABKoVQAAAUqFEAAAFKoBUAABAqMBAAAVCgxQAAVQAAVQBUAAKgFAQQACqoQFUAAKqEABAAAqhAAUAFAhQABQBRRQAAFUVVQAAAEUAAAAABEAAAAAAVAAAAAAAAAAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAFVQAAAAVAFAAAVESgQAAEVCqEAABQUqhAAAFAKhVAAFACoEQABAAIMUAAQAAAEAAEAAgxQABQAqBEAAFAKhVAAFBSqEAABFQqhAAAVESgQAAABUAUAAAABVUAAAAAAAAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAVAAAAAAEQAAAAABFAAAAAFUVVQAAFAFFFAAFABQIUABAAAqhAVQAAqoQEEAAqqEBUAAKgFABVAABVAAFQoMUAABAqMBAAAUqgFQAAFKhRAAABKoVQAAAUqEAAAABQFAAAAAFVAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFRVRUAABFQFRAAAUQARQAABAAAQAAFUAAVQABBAAEEABUAAAFQAQqgKoEAEqqKqhABKqAqoQAQoAAoEAFATMQFAAVVAVVAAABFRAAAAAVFQAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAAAAAAAAFQAAAAABEAAAAABRAAAAVVRVAAAUUUAUAAUgFABQAEqgAAEABKqAABVASqoAAQQFAqAABUAVQAAVQAAUwoFQAAEDKgEAABUCqFAAABFKhQAAAVSqEAAAAEqFAAAABQFAAAAAFVAAA==", "AAAAAAAAAAAAAAAAAAAAAAABVUAAAABQBUAAAAQoRFQAAEqgVEAABKoUFAAFUqAFAABEKgAUAAUwgABAABAAAAQABTCAAEAARCoAFAAFUqAFAAAEqhQUAABKoFRAAAQoRFQAAFAFQAAAAVVAAAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAFVAAAAAFAUAAAABKhQAAAVSqEAAAEUqFAAAVAqhQAAEDKgEAABTCgVAAFUAAFUAFAqAABUBKqgABBASqgAAVQEqgAAEABSAUAFAAFFFAFAAAVVRVAAAAAFEAAAAAARAAAAAAFQAAAAAAAAAAAAAAAAAA=="],
+  ["AAAAAAAAAAAAAAAAAVFQAAAAEVEAAAVVQFVUAUATMQBQEKgACoEBKqgKqhASqqKqoQEKqAqoEBQAAAAFAFBAAEFAAVQABVAAAQAAEAAAUQARQAAEVAVEAABUVUVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==", "AAVQAAAAAUFAAAAAUoUAAAAEqhVQAABKqFEAAASqgBUAAFCqMBAAAVKgxQAAVQAAUABUAAKBQAQQACqFAFUAAKoUABAACqhAAUAFKoQABQBSoUAAFUVAUAAAEUVUAAABEAAAAAAVAAAAAAAAAAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAAVVAAAAAUAUAAAAUKBAAAVEKoQAAEVCqEAABQUqhAAAFAKhVAAFACoEQABAAIMUAAQAAAEAAEAAgxQABQAqBEAAFAKhVAAFBSqEAABFQqhAAAVEKoQAAABQoEAAAAFAFAAAAAVVAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAVAAAAAAEQAAAAABFFVAAAFUVAUAAFAFKhQAFABSqEABAACqhAVQACqhQEEAAqhQBUAAKBQABVAABQAAFQoMUAAFCqMBAABKqAFQAASqhRAAAEqhVQAABShQAAAAFBQAAAAAVQAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFRVRUAABFQFRAAAUQARQAABAAAQAAFUAAVQAFBAAEFAFAAAAAUBCqgKqBASqqKqoQEqqAqqEBCoAAqBAUATMQBQBVVAVVQAABFRAAAAAVFQAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAAAAAAAAFQAAAAABEAAABVRRAAABQFRVAABSoUAUAASqFABQAEqoAAEABSqAABVAFKoAAQQAUKAABUABQAAVQAAUwqFQAAEDKoFAABUAqoQAABFKqEAAAVUqhAAAABShQAAAAFBQAAAAAVQAA==", "AAAAAAAAAAAAAAAAFVQAAAAFAFAAAABCgUAAAASqBFQAAEqgVEAABKoUFAAFUqAFAABEKgAUAAUwgABAABAAAAQABTCAAEAARCoAFAAFUqAFAAAEqhQUAABKoFRAAASqBFQAAEKBQAAABQBQAAAAFVQAAAAAAAAAAA==", "AAAAAAAAAAAVQAAAAAUFAAAAAUoUAAAVUqhAAAEUqoQAAVAKqEAAEDKoFAABTCgVAAAUAAFUAAUKAABUAUqgABBAUqoAAVQEqoAAEABKoUAFAAUqFAFAABQFRVAAAFVFEAAAAAARAAAAAAFQAAAAAAAAAAAAAAAAAA=="],
+  ["AAAAAAAAAAAAAAAAAVFQAAAAEVEAAAABQFAAABVTMVUABQAAABQAQqgKoEAEqqKqhABKqAqoQAQoAAoEAFAAAAFAAVQABVAAAQAAEAAAUQARQAAEVAVEAABUVUVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==", "AAAAAAAAAFQAAAAAFFQAAAAFIFFQAABKoVEAAASqgBUAAEqqMBAABQKgxQAAVQAAQABUAAKFAAQQACoUAFUAAqhAABAACoUAAUAEqhAABQBKhQAAFUUBQAAAEVVQAAABEAAAAAAVAAAAAAAAAAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAVVAAAAAUAUAAAVEKBAAAEVKoQAABQSqEAAAFAKhVAAFACoEQABAAIMUAAQAAAEAAEAAgxQABQAqBEAAFAKhVAAFBKoQAABFSqEAAAVEKBAAAABQBQAAAAFVQAAAAAAAAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAVAAAAAAEQAAAAABFVUAAAFUUBQAAFAEqFAAFABKoQABAACoUAVQACqEAEEAAqFABUAAKFAABVAABAAAUCoMUAAEqqMBAABKqAFQAASqFRAAAFIFFQAAAUVAAAAABUAAAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFRVRUAABFQFRAAAUQARQAABAAAQAAFUAAVQAFAAAAFABCgACgQASqgKqEAEqqKqhABCqAqgQAUAAAAUABVTMVUAAAFAUAAAABFRAAAAAVFQAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAAAAAAAAFQAAAAABEAAAAVVRAAAAUBRVAAAUqEAUAAEqhABQABSoAAEAAEqgABVABSoAAQQAFKAABUAAQAAVQAAUwqAUAAEDKqhAABUAqoQAABFSqEAAAVFCFAAAAAVFAAAAAAVAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAAAAAAAAVVAAAAAUAUAAAAEKBFQAABKoVEAAASqEFAAFUqAFAABEKgAUAAUwgABAABAAAAQABTCAAEAARCoAFAAFUqAFAAABKoQUAAASqFRAAAEKBFQAABQBQAAAAFVQAAAAAAAAAAAAAAAAAA==", "AAAAAAAAAAAAAAAAAABUAAAAAFRQAAAVFCFAAAEVKoQAAVAKqEAAEDKqhAABTCoBQAAEAAFUAAFKAABUAFKgABBABKoAAVQBSoAAEAASqEAFAAFKhAFAAAUBRVAAABVVEAAAAAARAAAAAAFQAAAAAAAAAAAAAAAAAA=="]
+];
+// </sprites>
+
 const W = g.getWidth();
 const H = g.getHeight();
-const DW = Math.round(W * 0.3);
-const DH = Math.round(H * 0.36);
-const GAP = Math.round(W * 0.12);
-const ROW_GAP = Math.round(H * 0.1);
-const LEN = Math.round(Math.min(DW, DH / 2) * 0.72);
-const SPEED = LEN * 0.2;
+const PITCH = Math.floor(Math.min(W / 7.5, H / 10.6));
+const ROW_GAP = Math.round(PITCH / 2);
+const HALF = SPRITE_SIZE >> 1;
+const HOP = PITCH * 1.6;
+const SPEED = PITCH * 0.3;
+const SCARE = PITCH * 2.5;
 const FRAME_MS = 50;
-const SCARE = LEN * 2.5;
 // Aus: Bei gesperrter Uhr springen die Fliegen ohne Flug auf ihre Plätze.
 const FLY_WHEN_LOCKED = true;
 
-// Segmentmitte relativ zur Ziffer (x, y) und Lage (0 waagrecht, 1 senkrecht).
-const SEGMENTS = {
-  a: [0.5, 0, 0], b: [1, 0.25, 1], c: [1, 0.75, 1], d: [0.5, 1, 0],
-  e: [0, 0.75, 1], f: [0, 0.25, 1], g: [0.5, 0.5, 0]
-};
-const DIGITS = ["abcdef", "bc", "abdeg", "abcdg", "bcfg", "acdfg", "acdefg", "abc", "abcdefg", "abcdfg"];
+// 3×5-Raster, auf möglichst wenige Zellen ausgedünnt.
+const FONT = [
+  ["010", "101", "101", "101", "010"],
+  ["010", "110", "010", "010", "010"],
+  ["110", "001", "010", "100", "111"],
+  ["110", "001", "010", "001", "110"],
+  ["100", "101", "111", "001", "001"],
+  ["111", "100", "110", "001", "110"],
+  ["011", "100", "110", "101", "010"],
+  ["111", "001", "010", "010", "010"],
+  ["010", "101", "010", "101", "010"],
+  ["010", "101", "011", "001", "110"]
+];
+// Flügelschlag wie im Simulator: Posen 1–3.
+const FLAP = [1, 1, 2, 2, 2, 3, 3, 3, 2, 2, 2];
+
+const PALETTE = new Uint16Array([0, g.toColor(0, 0, 1), g.toColor(1, 1, 1), g.toColor(1, 0, 0)]);
+const IMAGES = SPRITES.map((row) => row.map((data) => ({
+  width: SPRITE_SIZE, height: SPRITE_SIZE, bpp: 2, transparent: 0, palette: PALETTE, buffer: E.toArrayBuffer(atob(data))
+})));
 
 let flies = [];
 let slots = {};
@@ -33,21 +57,33 @@ function wrap(angle) {
   return angle;
 }
 
-// Slot-Ids hängen an Stelle und Segment, damit bleibende Segmente ihre Fliege behalten.
+// 0 = Norden, im Uhrzeigersinn.
+function directionOf(vx, vy, previous) {
+  const ax = Math.abs(vx);
+  const ay = Math.abs(vy);
+  if (ax < 0.05 && ay < 0.05) return previous;
+  if (ay > ax * 2) return vy < 0 ? 0 : 4;
+  if (ax > ay * 2) return vx < 0 ? 6 : 2;
+  if (vy < 0) return vx < 0 ? 7 : 1;
+  return vx < 0 ? 5 : 3;
+}
+
+// Slot-Ids hängen an Stelle und Zelle, damit bleibende Zellen ihre Fliege behalten.
 function slotsFor(date) {
   const h = date.getHours();
   const m = date.getMinutes();
   const digits = [h >= 10 ? Math.floor(h / 10) : -1, h % 10, Math.floor(m / 10), m % 10];
-  const x0 = (W - 2 * DW - GAP) / 2;
-  const y0 = (H - 2 * DH - ROW_GAP) / 2;
+  const x0 = (W - 7 * PITCH) / 2 + PITCH / 2;
+  const y0 = (H - 10 * PITCH - ROW_GAP) / 2 + PITCH / 2;
   const result = {};
   digits.forEach((digit, i) => {
     if (digit < 0) return;
-    const bx = x0 + (i % 2) * (DW + GAP);
-    const by = y0 + (i >> 1) * (DH + ROW_GAP);
-    DIGITS[digit].split("").forEach((name) => {
-      const seg = SEGMENTS[name];
-      result[i + name] = { x: bx + seg[0] * DW, y: by + seg[1] * DH, a: seg[2] * Math.PI / 2 };
+    const bx = x0 + (i % 2) * 4 * PITCH;
+    const by = y0 + (i >> 1) * (5 * PITCH + ROW_GAP);
+    FONT[digit].forEach((row, r) => {
+      for (let c = 0; c < 3; c++) {
+        if (row[c] === "1") result[i + ":" + r + ":" + c] = { x: bx + c * PITCH, y: by + r * PITCH };
+      }
     });
   });
   return result;
@@ -55,7 +91,7 @@ function slotsFor(date) {
 
 function outside() {
   const t = Math.random();
-  const m = LEN * 2;
+  const m = SPRITE_SIZE;
   switch (Math.floor(Math.random() * 4)) {
     case 0: return { x: t * W, y: -m };
     case 1: return { x: W + m, y: t * H };
@@ -74,9 +110,9 @@ function route(from, to) {
     const dx = to.x - x;
     const dy = to.y - y;
     const len = Math.sqrt(dx * dx + dy * dy);
-    if (len < LEN * 1.5) break;
+    if (len < HOP * 1.5) break;
     heading += wrap(Math.atan2(dy, dx) - heading) * 0.6 + (Math.random() - 0.5) * 1.2;
-    const step = Math.min(len, LEN * (1 + Math.random()));
+    const step = Math.min(len, HOP * (1 + Math.random()));
     x += Math.cos(heading) * step;
     y += Math.sin(heading) * step;
     points.push({ x: x, y: y });
@@ -95,7 +131,7 @@ function takeNearest(list, target) {
   return best < 0 ? undefined : list.splice(best, 1)[0];
 }
 
-// Fliegen auf wegfallenden Segmenten fliegen zu neuen Segmenten, der Rest verlässt die Uhr.
+// Fliegen auf wegfallenden Zellen fliegen zu neuen Zellen, der Rest verlässt die Uhr.
 function sync() {
   const next = slotsFor(new Date());
   const free = [];
@@ -109,7 +145,7 @@ function sync() {
     let fly = takeNearest(free, next[id]);
     if (!fly) {
       const start = outside();
-      fly = { x: start.x, y: start.y, h: Math.atan2(next[id].y - start.y, next[id].x - start.x), flap: 0 };
+      fly = { x: start.x, y: start.y, dir: directionOf(next[id].x - start.x, next[id].y - start.y, 0), anim: Math.floor(Math.random() * FLAP.length) };
       flies.push(fly);
     }
     fly.slot = id;
@@ -130,11 +166,8 @@ function land(fly) {
     fly.gone = true;
     return;
   }
-  const slot = slots[fly.slot];
-  fly.x = slot.x;
-  fly.y = slot.y;
-  // Längs ins Segment drehen, in die Richtung, die der Flugrichtung näher liegt.
-  fly.h = Math.abs(wrap(slot.a - fly.h)) <= Math.PI / 2 ? slot.a : wrap(slot.a + Math.PI);
+  fly.x = slots[fly.slot].x;
+  fly.y = slots[fly.slot].y;
 }
 
 function step(fly) {
@@ -142,6 +175,7 @@ function step(fly) {
   const dx = point.x - fly.x;
   const dy = point.y - fly.y;
   const dist = Math.sqrt(dx * dx + dy * dy);
+  fly.anim++;
   if (dist <= SPEED) {
     fly.x = point.x;
     fly.y = point.y;
@@ -149,57 +183,19 @@ function step(fly) {
     if (!fly.route.length) land(fly);
     return;
   }
-  fly.h += wrap(Math.atan2(dy, dx) - fly.h) * 0.5;
   fly.x += dx / dist * SPEED;
   fly.y += dy / dist * SPEED;
-  fly.flap ^= 1;
-}
-
-function drawFly(fly) {
-  const c = Math.cos(fly.h);
-  const s = Math.sin(fly.h);
-  const x = fly.x;
-  const y = fly.y;
-  const P = (lx, ly) => [x + (lx * c - ly * s) * LEN, y + (lx * s + ly * c) * LEN];
-  const flying = !!fly.route;
-
-  g.setColor(g.theme.fg);
-  if (!flying) {
-    [[0.3, 0.3], [0.05, 0.36], [-0.2, 0.32]].forEach((leg) => {
-      const a = P(0.08, 0);
-      g.drawLine(a[0], a[1], P(leg[0], leg[1])[0], P(leg[0], leg[1])[1]);
-      g.drawLine(a[0], a[1], P(leg[0], -leg[1])[0], P(leg[0], -leg[1])[1]);
-    });
-  }
-  const body = [];
-  for (let i = 0; i < 8; i++) {
-    const t = i * Math.PI / 4;
-    const p = P(-0.2 + Math.cos(t) * 0.28, Math.sin(t) * 0.17);
-    body.push(p[0], p[1]);
-  }
-  g.fillPoly(body);
-  const thorax = P(0.1, 0);
-  g.fillCircle(thorax[0], thorax[1], Math.max(1, LEN * 0.14));
-  const head = P(0.32, 0);
-  g.fillCircle(head[0], head[1], Math.max(1, LEN * 0.1));
-  g.setColor(1, 0, 0);
-  [-0.07, 0.07].forEach((side) => {
-    const eye = P(0.34, side);
-    g.fillCircle(eye[0], eye[1], Math.max(1, LEN * 0.05));
-  });
-
-  const spread = flying ? (fly.flap ? 1.4 : 0.5) : 1;
-  g.setColor(0, 0, 1);
-  [-1, 1].forEach((side) => {
-    const wing = [P(0.05, 0.04 * side), P(-0.35, 0.36 * spread * side), P(-0.58, 0.2 * spread * side), P(-0.2, 0.02 * side)];
-    g.drawPoly([].concat(wing[0], wing[1], wing[2], wing[3]), true);
-  });
+  fly.dir = directionOf(dx, dy, fly.dir);
 }
 
 function draw() {
   g.reset();
+  g.setBgColor(0, 0, 0);
   g.clearRect(0, 0, W - 1, H - 1);
-  flies.forEach(drawFly);
+  flies.forEach((fly) => {
+    const pose = fly.route ? FLAP[fly.anim % FLAP.length] : 0;
+    g.drawImage(IMAGES[pose][fly.dir], Math.round(fly.x) - HALF, Math.round(fly.y) - HALF);
+  });
 }
 
 function tick() {
@@ -219,7 +215,7 @@ function tick() {
 
 function animate() {
   if (!FLY_WHEN_LOCKED && Bangle.isLocked()) {
-    flies.forEach((fly) => { if (fly.route) { fly.route = []; land(fly); } });
+    flies.forEach((fly) => { if (fly.route) land(fly); });
     flies = flies.filter((fly) => !fly.gone);
     draw();
     return;
@@ -235,7 +231,7 @@ function scheduleMinute() {
   }, 60000 - (Date.now() % 60000) + 20);
 }
 
-// Berührte Fliegen springen kurz weg und kehren auf ihr Segment zurück.
+// Berührte Fliegen springen kurz weg und kehren auf ihre Zelle zurück.
 function onTouch(button, xy) {
   if (!xy) return;
   let scared = false;
@@ -246,7 +242,7 @@ function onTouch(button, xy) {
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist > SCARE) return;
     const away = (dist < 1 ? Math.random() * 2 * Math.PI : Math.atan2(dy, dx)) + (Math.random() - 0.5);
-    const reach = LEN * (2 + Math.random() * 2);
+    const reach = PITCH * (2 + Math.random() * 2);
     const flee = { x: fly.x + Math.cos(away) * reach, y: fly.y + Math.sin(away) * reach };
     fly.route = [flee].concat(route(flee, slots[fly.slot]));
     scared = true;
@@ -268,6 +264,7 @@ Bangle.setUI({
 Bangle.on("touch", onTouch);
 Bangle.loadWidgets();
 try { require("widget_utils").hide(); } catch (e) { }
+g.setBgColor(0, 0, 0);
 g.clear();
 sync();
 scheduleMinute();
