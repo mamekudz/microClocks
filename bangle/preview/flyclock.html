@@ -10,7 +10,7 @@
 </head>
 <body>
 	<canvas id="glass" width="176" height="176"></canvas>
-	<p>Bangle.js 2 · 176 × 176 · 3-Bit-Farben · Klick scheucht die Fliegen auf</p>
+	<p>Bangle.js 2 · 176 × 176 · 3-Bit-Farben · Klick scheucht die Fliegen auf · S schüttelt die Uhr</p>
 	<script>
 		// Nachbildung der Espruino-Grafik, soweit FlyClock.js sie benutzt. Farben sind 3-Bit-Werte (RGB-Bits).
 		const canvas = document.getElementById('glass');
@@ -48,6 +48,10 @@
 		canvas.addEventListener('click', (event) => {
 			const scale = canvas.width / canvas.getBoundingClientRect().width;
 			listeners.touch?.(1, { x: event.offsetX * scale, y: event.offsetY * scale });
+		});
+		window.addEventListener('keydown', (event) => {
+			if (event.key !== 's' && event.key !== 'S') return;
+			for (let i = 0; i < 3; i++) listeners.accel?.({ x: 0, y: 0, z: -1, diff: 2, mag: 2 });
 		});
 		fetch('../FlyClock.js', { cache: 'no-store' }).then((response) => response.text()).then((code) => eval(code));
 	</script>

@@ -1,7 +1,7 @@
 // Fliegenuhr: 3×5-Ziffern mit ausgedünnten Zellen, eine Fliege pro Zelle. Stunden oben, Minuten unten.
 // Die Fliegen landen neben ihrer Zelle und laufen das letzte Stück zu Fuß.
 // Sitzende Fliegen bewegen sich nicht. Ohne fliegende oder laufende Fliege läuft kein Intervall,
-// die Uhr schläft bis zum nächsten Minutenwechsel oder einer Berührung.
+// die Uhr schläft bis zum nächsten Minutenwechsel, einer Berührung oder heftigem Schütteln.
 {
 // <sprites> erzeugt von bangle/tools/flysprites.py aus shared/assets/fly/flyex.png
 const SPRITE_SIZE = 22;
@@ -31,6 +31,11 @@ const WALK_SPEED = 1.2;
 const LAND_MIN = 0.6;
 const LAND_MAX = 1.8;
 const SCARE = PITCH * 2.5;
+// Schütteln: SHAKE_HITS Sprünge über SHAKE_G (in g) innerhalb von SHAKE_WINDOW_MS, danach SHAKE_PAUSE_MS Ruhe.
+const SHAKE_G = 0.8;
+const SHAKE_HITS = 3;
+const SHAKE_WINDOW_MS = 1000;
+const SHAKE_PAUSE_MS = 3000;
 const FRAME_MS = 50;
 // Aus: Bei gesperrter Uhr springen die Fliegen ohne Flug auf ihre Plätze.
 const FLY_WHEN_LOCKED = true;
@@ -279,7 +284,12 @@ function scheduleMinute() {
   }, 60000 - (Date.now() % 60000) + 20);
 }
 
-// Berührte Fliegen springen kurz weg, landen wieder in der Nähe ihrer Zelle und laufen zurück.
+// Aufgeschreckte Fliegen springen weg, landen wieder in der Nähe ihrer Zelle und laufen zurück.
+function scare(fly, away, reach) {
+  const flee = { x: fly.x + Math.cos(away) * reach, y: fly.y + Math.sin(away) * reach };
+  fly.route = [flee].concat(flyTo(fly, flee, slots[fly.slot]));
+}
+
 function onTouch(button, xy) {
   if (!xy) return;
   let scared = false;
@@ -289,13 +299,31 @@ function onTouch(button, xy) {
     const dy = fly.y - xy.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist > SCARE) return;
-    const away = (dist < 1 ? Math.random() * 2 * Math.PI : Math.atan2(dy, dx)) + (Math.random() - 0.5);
-    const reach = PITCH * (2 + Math.random() * 2);
-    const flee = { x: fly.x + Math.cos(away) * reach, y: fly.y + Math.sin(away) * reach };
-    fly.route = [flee].concat(flyTo(fly, flee, slots[fly.slot]));
+    scare(fly, (dist < 1 ? Math.random() * 2 * Math.PI : Math.atan2(dy, dx)) + (Math.random() - 0.5), PITCH * (2 + Math.random() * 2));
     scared = true;
   });
   if (scared) animate();
+}
+
+// Heftiges Schütteln: mehrere starke Beschleunigungssprünge kurz hintereinander schrecken alle Fliegen auf.
+let shakeHits = 0;
+let shakeSince = 0;
+let shakeQuietUntil = 0;
+function onAccel(a) {
+  if (a.diff < SHAKE_G) return;
+  const now = Date.now();
+  if (now < shakeQuietUntil) return;
+  if (now - shakeSince > SHAKE_WINDOW_MS) {
+    shakeSince = now;
+    shakeHits = 0;
+  }
+  if (++shakeHits < SHAKE_HITS) return;
+  shakeHits = 0;
+  shakeQuietUntil = now + SHAKE_PAUSE_MS;
+  flies.forEach((fly) => {
+    if (!fly.exit && fly.slot) scare(fly, Math.random() * 2 * Math.PI, PITCH * (3 + Math.random() * 4));
+  });
+  animate();
 }
 
 Bangle.setUI({
@@ -306,10 +334,12 @@ Bangle.setUI({
     frameTimer = undefined;
     minuteTimer = undefined;
     Bangle.removeListener("touch", onTouch);
+    Bangle.removeListener("accel", onAccel);
     try { require("widget_utils").show(); } catch (e) { }
   }
 });
 Bangle.on("touch", onTouch);
+Bangle.on("accel", onAccel);
 Bangle.loadWidgets();
 try { require("widget_utils").hide(); } catch (e) { }
 g.setBgColor(0, 0, 0);
