@@ -6,8 +6,6 @@ dist/
 .microgulp/logs/
 .microgulp/device-backups/
 .microgulp/setup-backups/
-.microgulp/recipes/*/node_modules/
-.recipe-state/
 
 # ESP32 / PlatformIO
 esp32/firmware/.pio/

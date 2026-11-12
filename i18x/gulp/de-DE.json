@@ -66,6 +66,6 @@
   "Serve the wallpaper sources without caching and open them in the browser.<context=\"µDescription\"/>": "Wallpaper-Quellen ohne Cache ausliefern und im Browser öffnen.",
   "Git commit<context=\"µDisplayName\"/>": "Git-Commit",
   "Stage and commit only the files of the selected subproject.<context=\"µDescription\"/>": "Nur die Dateien des gewählten Teilprojekts vormerken und committen.",
-  "Back up project<context=\"µDisplayName\"/>": "Projekt sichern",
-  "Write a time-stamped ZIP snapshot of one subproject, skipping regenerable build folders.<context=\"µDescription\"/>": "ZIP-Schnappschuss eines Teilprojekts mit Zeitstempel schreiben, ohne regenerierbare Build-Ordner."
+  "Back up to Z:<context=\"µDisplayName\"/>": "Auf Z: sichern",
+  "Copy everything that cannot be rebuilt or downloaded to the backup drive.<context=\"µDescription\"/>": "Alles, was sich nicht neu bauen oder herunterladen lässt, auf das Sicherungslaufwerk kopieren."
 }

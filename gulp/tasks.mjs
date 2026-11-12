@@ -1,6 +1,7 @@
-import { cpSync, existsSync, mkdirSync, rmSync, statSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { Log, LogKeyValue } from 'gulp-mu-gulp-api';
+import { Log } from 'gulp-mu-gulp-api';
 import { PROJECTS, capture, findPio, openUrl, run, serveStatic, untilCancelled } from './common.mjs';
 
 const SIM_PORT = 8765;
@@ -88,37 +89,35 @@ export function commitProject(root, { project, message }) {
 	Log(capture('git', ['commit', '-m', subject, '--', ...paths], root).trim());
 }
 
-function stamp() {
-	const now = new Date();
-	const pad = (value) => String(value).padStart(2, '0');
-	return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-}
+/** Ordnernamen, deren Inhalt sich neu bauen oder herunterladen lässt. */
+const REPRODUCIBLE = [
+	'node_modules', 'dist', '.pio', '.vs', '.cache',
+	'Intermediate', 'Saved', 'Binaries', 'DerivedDataCache', 'StarterContent', 'polyhaven', 'Downloads',
+];
 
 /**
- * Schreibt ein ZIP des Teilprojekts nach `<target>/<projekt>/<projekt>-<zeit>.zip`.
+ * Kopiert das Repository (oder ein Teilprojekt) nach `target`, ohne Reproduzierbares.
+ * Am Ziel wird nichts gelöscht.
  * @param {string} root
  * @param {{ project: string, target: string }} options
  */
-export async function backupProject(root, { project, target }) {
-	const definition = PROJECTS[project];
-	if (!definition) throw new Error(`Unbekanntes Projekt: ${project}`);
+export async function backup(root, { project, target }) {
 	if (!target) throw new Error('Kein Zielordner angegeben.');
-	const folder = join(target, project);
-	mkdirSync(folder, { recursive: true });
-	const file = join(folder, `${project}-${stamp()}.zip`);
-	// Das Windows-tar (bsdtar) kann ZIP schreiben; ein tar aus Git for Windows im PATH nicht.
-	const tar = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe');
-	const excludes = definition.exclude.flatMap((name) => ['--exclude', name]);
-	await run(tar, ['-a', '-c', '-f', file, ...excludes, '-C', root, ...definition.paths]);
-	const entries = capture(tar, ['-t', '-f', file], root).split('\n').filter(Boolean).length;
-	if (!entries) throw new Error(`Das Archiv ist leer: ${file}`);
-	LogKeyValue({
-		title: `Sicherung ${definition.label}`,
-		items: [
-			{ key: 'Datei', value: file },
-			{ key: 'Einträge', value: String(entries) },
-			{ key: 'Größe', value: `${(statSync(file).size / 1024 / 1024).toFixed(1)} MB` },
-			{ key: 'Ausgelassen', value: definition.exclude.join(', ') || '-' },
-		],
-	});
+	const definition = PROJECTS[project];
+	if (project !== 'all' && !definition) throw new Error(`Unbekanntes Projekt: ${project}`);
+	const paths = definition ? definition.paths : ['.'];
+	const excludes = ['/XD', ...REPRODUCIBLE, join(root, '.microgulp', 'logs'), '/XF', 'fly_loop.wav'];
+	for (const path of paths) {
+		const from = join(root, path);
+		const to = join(target, path);
+		Log(`${from} -> ${to}`);
+		const code = await new Promise((resolveCopy, rejectCopy) => {
+			const child = spawn('robocopy', [from, to, '/E', '/R:2', '/W:5', '/NFL', '/NDL', '/NP', ...excludes], { stdio: ['ignore', 'inherit', 'inherit'], windowsHide: true });
+			child.on('error', rejectCopy);
+			child.on('close', resolveCopy);
+		});
+		// robocopy: 0-7 Erfolg, ab 8 Fehler.
+		if (code >= 8) throw new Error(`robocopy meldet Fehler (Code ${code}) für ${path}.`);
+	}
+	Log(`Gesichert nach ${target}`);
 }

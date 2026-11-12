@@ -7,14 +7,10 @@ import { Ide, Log } from 'gulp-mu-gulp-api';
 
 /** Teilprojekte. `paths` sind relativ zum Repository und bestimmen Commit- und Sicherungsumfang. */
 export const PROJECTS = {
-	bangle: { label: 'Bangle.js', paths: ['bangle'], exclude: [] },
-	esp32: { label: 'ESP32', paths: ['esp32', 'shared'], exclude: ['.pio'] },
-	pc: {
-		label: 'PC (Unreal)',
-		paths: ['pc'],
-		exclude: ['Intermediate', 'Saved', 'Binaries', 'DerivedDataCache', 'StarterContent', 'polyhaven', 'Downloads'],
-	},
-	wallpaper: { label: 'Wallpaper Engine', paths: ['wallpaper', 'shared'], exclude: [] },
+	bangle: { label: 'Bangle.js', paths: ['bangle'] },
+	esp32: { label: 'ESP32', paths: ['esp32', 'shared'] },
+	pc: { label: 'PC (Unreal)', paths: ['pc'] },
+	wallpaper: { label: 'Wallpaper Engine', paths: ['wallpaper', 'shared'] },
 };
 
 export const projectOptions = () => Object.entries(PROJECTS).map(([value, { label }]) => ({ value, label }));

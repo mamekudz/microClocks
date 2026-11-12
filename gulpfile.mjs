@@ -284,74 +284,37 @@ commitProject.µAgent = {
 	"cancellation": "Cancelling after staging leaves the files staged without a commit."
 };
 
-// ---------------------------------------------------------------- Maintenance
+// ---------------------------------------------------------------- Sicherung
 
-export async function backupProject() {
-	await tasks.backupProject(root, {
-		project: GetParameter('project', 'bangle'),
-		target: String(GetParameter('target', 'Z:\\Projects\\microClocks\\snapshots') ?? '').trim(),
+export async function backup() {
+	await tasks.backup(root, {
+		project: GetParameter('project', 'all'),
+		target: String(GetParameter('target', 'Z:\\Projects\\microClocks') ?? '').trim(),
 	});
 }
 
-backupProject.µDisplayName = "Back up project<context=\"µDisplayName\"/>".i18xRegister();
-backupProject.µDescription = "Write a time-stamped ZIP snapshot of one subproject, skipping regenerable build folders.<context=\"µDescription\"/>".i18xRegister();
-backupProject.µGroup = "Maintenance<context=\"µGroup\"/>".i18xRegister();
-backupProject.µOrder = 3010;
-backupProject.µParameters = () => ({
-	title: 'Projekt sichern',
+backup.µDisplayName = "Back up to Z:<context=\"µDisplayName\"/>".i18xRegister();
+backup.µDescription = "Copy everything that cannot be rebuilt or downloaded to the backup drive.<context=\"µDescription\"/>".i18xRegister();
+backup.µGroup = "Maintenance<context=\"µGroup\"/>".i18xRegister();
+backup.µOrder = 3000;
+backup.µParameters = () => ({
+	title: 'Sichern',
 	fields: [
-		{ id: 'project', type: 'select', label: 'Projekt', options: projectOptions(), default: 'bangle', required: true },
-		{ id: 'target', type: 'folder', label: 'Zielordner', description: 'Darin entsteht <projekt>/<projekt>-<zeit>.zip.', default: 'Z:\\Projects\\microClocks\\snapshots', required: true },
+		{ id: 'project', type: 'select', label: 'Projekt', options: [{ value: 'all', label: 'Alles' }, ...projectOptions()], default: 'all', required: true },
+		{ id: 'target', type: 'folder', label: 'Zielordner', default: 'Z:\\Projects\\microClocks', required: true },
 	],
 });
-backupProject.µAgent = {
+backup.µAgent = {
 	"schemaVersion": 1,
-	"purpose": "Create <target>/<project>/<project>-<timestamp>.zip of the subproject paths with Windows tar.exe and check that it lists entries.",
-	"prerequisites": ["Windows 10+ tar.exe (bsdtar) and a writable target folder."],
-	"sideEffects": ["Creates the target folder if missing and writes one new ZIP file; existing snapshots are not touched."],
-	"artifacts": ["<target>/<project>/<project>-<timestamp>.zip"],
+	"purpose": "Copy the repository or one subproject to the target folder with robocopy /E, skipping reproducible folders.",
+	"prerequisites": ["Reachable, writable target folder (default Z:\\Projects\\microClocks)."],
+	"sideEffects": ["Creates and overwrites files in the target folder; nothing is deleted there."],
+	"artifacts": ["Copy of the sources including .git below the target folder."],
 	"limitations": [
-		"Skips build output such as .pio and Unreal Intermediate, Saved, Binaries, DerivedDataCache, StarterContent and downloaded Poly Haven assets.",
-		"Checks the archive listing only, not file hashes."
+		"Skips node_modules, dist, .pio, .vs, .cache, .microgulp/logs and Unreal Intermediate, Saved, Binaries, DerivedDataCache, StarterContent, polyhaven, Downloads, fly_loop.wav.",
+		"Files deleted locally stay in the backup."
 	],
-	"repeatability": "Each run writes a new snapshot.",
-	"cancellation": "Cancelling can leave an incomplete ZIP file in the target folder."
+	"repeatability": "Repeatable; robocopy copies only changed files.",
+	"cancellation": "Cancelling leaves a partial copy; the next run completes it."
 };
 
-// µGulp setup: curated recipe tasks.
-import BACKUP_NAS_Schedule from "./.microgulp/recipes/nas-backup/Schedule.cjs";
-export async function BACKUP_NAS() {
-	const { Run } = await import("./.microgulp/recipes/nas-backup/Run.mjs");
-	return Run();
-}
-BACKUP_NAS.µDisplayName = "NAS backup<context=\"µDisplayName\"/>".i18xRegister();
-BACKUP_NAS.µGroup = "Maintenance<context=\"µGroup\"/>".i18xRegister();
-BACKUP_NAS.µOrder = 3000;
-BACKUP_NAS.µExecutionConcurrency = false;
-BACKUP_NAS.µSchedule = BACKUP_NAS_Schedule;
-BACKUP_NAS.µDescription = "Configure NAS targets and the schedule, preview a backup or copy and verify files at selected destinations.<context=\"µDescription\"/>".i18xRegister();
-BACKUP_NAS.µAgent = {
-	"schemaVersion": 1,
-	"purpose": "Manage NAS backup targets and scheduling, preview or create verified backups of the whole repository.",
-	"prerequisites": [
-		"Installed recipe dependencies and valid local recipe configuration.",
-		"Dashboard for interactive execution; real backups require accessible target directories with matching .microgulp-target.json markers."
-	],
-	"sideEffects": [
-		"Persists local target/schedule settings. Preview does not copy backup files.",
-		"Real runs write verified fixed backups or snapshots and local history; fixed mode can replace an older backup."
-	],
-	"artifacts": [
-		"Backups at selected configured destinations.",
-		"Local schedule settings and .recipe-state history."
-	],
-	"limitations": [
-		"The imported interactive Run wrapper requires the dashboard; it is not a standalone CLI backup command.",
-		"Targets can fail independently; a completed target is not rolled back when another target fails."
-	],
-	"repeatability": "Depends on fixed/snapshot mode; review prior target results before retrying.",
-	"cancellation": "Stopping can leave staging files or locks. Completed backups are not automatically rolled back."
-};
-
-// Gruppen: je Teilprojekt Build und Start, danach Git und Wartung.
-// Export- und Tasknamen von programBangle und BACKUP_NAS bleiben kompatibel.

@@ -1,6 +1,13 @@
 {
 	"version": 1,
 	"tasks": {
+		"gulpfile.mjs::backup": {
+			"values": {
+				"project": "all",
+				"target": "Z:\\Projects\\microClocks"
+			},
+			"savedAt": 1794492170139
+		},
 		"gulpfile.mjs::programBangle": {
 			"values": {
 				"previewOnly": false,

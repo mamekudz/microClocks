@@ -1,8 +1,0 @@
-{
-	"enabled": false,
-	"cron": "0 2 * * *",
-	"targetIds": [
-		"nas-1"
-	],
-	"dryRun": false
-}
