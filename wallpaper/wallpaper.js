@@ -19,8 +19,11 @@ const context = canvas.getContext("2d");
 const buzz = createBuzz();
 const clack = createClack();
 
+// Vorschau aus µGulp: ?face=… wählt das Zifferblatt; Wallpaper Engine überschreibt es mit ihren Eigenschaften.
+const requestedFace = new URLSearchParams(location.search).get("face");
+
 const settings = {
-	face: "flies",
+	face: FACES.includes(requestedFace) ? requestedFace : "flies",
 	floor: "slate",
 	size: 1,
 	hover: true,

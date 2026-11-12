@@ -39,6 +39,16 @@ Gulp läuft nur über µGulp (kein lokales `gulp`-Paket; `npx gulp …` scheiter
 | `commitProject` | Git | `git add -A` und Commit nur für die Pfade eines Teilprojekts, Nachricht mit Projektname als Präfix; kein Push |
 | `backup` | Wartung | Kopie nach `Z:\Projects\microClocks` (siehe unten) |
 
+### Projektsteuerung „Uhr“
+
+`export const µControls` im Gulpfile deklariert die Auswahl „Uhr“ (Id `clock`) in der µGulp-Steuerleiste; der Wert liegt in `.microgulp/project-controls.json`. Der Katalog steht in `gulp/clocks.mjs` (`CATALOG`): je Uhr optional `bangle` (Skript), `web` (Zifferblatt in `esp32/sim` und `wallpaper`: flies, marbles, oxyd, oxyd-large, oxyd-floor) und `pc` (flies oder marbles). Weitere Skripte unter `bangle/` erscheinen automatisch als eigene Uhr.
+
+- Tasks lesen die Uhr mit `currentClock(root)` (über `GetProjectControl('clock')`).
+- `µVisible` blendet Tasks aus, wenn es die Uhr auf der Plattform nicht gibt; `previewBangle` gibt es nur für „Fliegen“. `buildEsp32`, `buildPc`, `commitProject`, `backup` bleiben immer sichtbar.
+- Anzeigenamen nutzen den Platzhalter `<clockLabel/>` (auch in `i18x/gulp/de-DE.json`).
+- Simulator und Wallpaper werden mit `?face=…` geöffnet; `buildWallpaper` setzt das Zifferblatt als Vorgabe in `dist/wallpaper/project.json`.
+- `programBangle` fragt nur noch den Namen auf der Uhr ab, mit eigener Feld-Id pro Uhr (`name_<uhr>`), damit µGulp ihn je Uhr merkt.
+
 Die Vorschau-Tasks liefern das ganze Repository ohne Caching über `serveStatic` aus (Port 8765, sonst ein freier Port), öffnen die Seite und laufen bis zum Abbruch.
 
 Teilprojekte (`gulp/common.mjs`, `PROJECTS`): `bangle` → `bangle`; `esp32` → `esp32`, `shared`; `pc` → `pc`; `wallpaper` → `wallpaper`, `shared`.
@@ -65,7 +75,7 @@ Gewünscht ist ausdrücklich eine einfache Kopie, kein NAS-Rezept und keine ZIP-
 ## Bangle.js 2
 
 - Display 176 × 176, 3-Bit-Farben (MIP). Uhren nutzen `Bangle.setUI({ mode: "clock", remove })` für Fast Load; der ganze Code steht in einem `{ … }`-Block.
-- `programBangle` überträgt genau eine JS-Datei; die Uhr-Id ergibt sich aus dem Dateinamen. Der Name auf der Uhr hat pro Skript ein eigenes Feld (`name_<Datei>`, per `visibleWhen` nur zum gewählten Skript sichtbar), vorbelegt aus dem Dateinamen („FlyClock“ → „Fly Clock“).
+- `programBangle` überträgt das Skript der gewählten Uhr (genau eine JS-Datei); die Uhr-Id ergibt sich aus dem Dateinamen, der Name auf der Uhr ist aus dem Dateinamen vorbelegt („FlyClock“ → „Fly Clock“).
 - Bei der Übertragung sucht `bangle/tools/native-program.mjs` per Bluetooth nach Bangles, lässt eine wählen (die zuletzt benutzte ist vorausgewählt) und speichert sie in `.microgulp/native-device.json`. Erst danach folgen die Bestätigungen für Verbindung/Sicherung und fürs Schreiben. Die Uhr muss eingeschaltet und darf nicht mit Handy/Gadgetbridge verbunden sein. `listClockScripts` überspringt `tools`, `assets`, `node_modules`, `.microgulp`, `.git`.
 - Espruino schläft automatisch, wenn kein Intervall läuft. Touch-Ereignisse kommen bei gesperrter Uhr nicht an.
 

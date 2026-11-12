@@ -1,29 +1,31 @@
 // microClocks — Projekttitel und Logo: microgulp.config.json
 // Teilprojekte: bangle/ (Bangle.js), esp32/ (Waveshare ESP32-S3-Touch-AMOLED-2.06),
 // pc/ (Unreal FlyClock3D), wallpaper/ (Wallpaper Engine). shared/ enthält die Zifferblätter für esp32/sim und wallpaper.
-import { dirname, join } from 'node:path';
+// Die Projektsteuerung "Uhr" (µControls, Katalog in gulp/clocks.mjs) wählt die Uhr für alle Tasks.
+import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GetParameter, Log, ReportProgress } from 'gulp-mu-gulp-api';
-import { listClockScripts } from './bangle/tools/program.mjs';
 import { startNativeProgrammer } from './bangle/tools/native-program.mjs';
+import { clockControl, currentClock } from './gulp/clocks.mjs';
 import { flag, projectOptions } from './gulp/common.mjs';
 import * as tasks from './gulp/tasks.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
-const bangleScripts = () => listClockScripts(root, join(root, 'bangle'));
-// Pro Skript ein eigenes Namensfeld, weil Formularfelder ihren Vorgabewert nicht aus einem anderen Feld übernehmen können.
-const nameFieldId = (script) => 'name_' + script.replace(/^.*\//, '').replace(/\.js$/i, '').replace(/[^A-Za-z0-9_]/g, '_').slice(0, 40);
-const clockTitle = (script) => script.replace(/^.*\//, '').replace(/\.js$/i, '').replace(/[_-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2');
+const clock = () => currentClock(root);
+// Eigene Feld-Id pro Uhr, damit µGulp sich den Namen je Uhr merkt.
+const nameFieldId = (entry) => 'name_' + entry.value.replace(/[^A-Za-z0-9_]/g, '_').slice(0, 40);
+
+export const µControls = [clockControl(root)];
 
 // ---------------------------------------------------------------- Bangle.js
 
 export async function programBangle() {
-	const script = GetParameter('script', bangleScripts()[0]?.value);
-	if (!script) throw new Error('Im Ordner bangle liegt kein Uhr-Skript.');
+	const selected = clock();
+	if (!selected.bangle) throw new Error(`Für „${selected.label}“ gibt es keine Bangle-Uhr.`);
 	const message = await startNativeProgrammer({
 		root,
-		script,
-		name: String(GetParameter(nameFieldId(script), '') ?? '').trim() || clockTitle(script),
+		script: selected.bangle,
+		name: String(GetParameter(nameFieldId(selected), '') ?? '').trim() || selected.title,
 		install: flag(GetParameter('install', false)),
 		previewOnly: flag(GetParameter('previewOnly', true)),
 		start: flag(GetParameter('start', false)),
@@ -34,36 +36,27 @@ export async function programBangle() {
 	Log(message);
 }
 
-programBangle.µDisplayName = "Program Bangle<context=\"µDisplayName\"/>".i18xRegister();
-programBangle.µDescription = "Native Bluetooth connection with preview, backup and read-back verification.<context=\"µDescription\"/>".i18xRegister();
+programBangle.µDisplayName = "Program <clockLabel/> to Bangle<context=\"µDisplayName\"/>".i18xRegister();
+programBangle.µDescription = "Native Bluetooth connection with preview, backup and read-back verification for the clock selected in the project controls.<context=\"µDescription\"/>".i18xRegister();
+programBangle.µVisible = () => !!clock().bangle;
 programBangle.µTooltip = "Preview only by default. Writing requires separate confirmation in the dashboard.<context=\"µTooltip\"/>".i18xRegister();
 programBangle.µGroup = "Bangle.js<context=\"µGroup\"/>".i18xRegister();
 programBangle.µOrder = 1000;
 programBangle.µParameters = () => {
-	const scripts = bangleScripts();
+	const selected = clock();
 	return {
-	title: 'Bangle programmieren',
+	title: `${selected.label} auf die Bangle`,
 	submitLabel: 'Weiter zur nativen Vorschau',
 	fields: [
 		{ id: 'previewOnly', type: 'boolean', label: 'Nur Vorschau (ohne Gerätezugriff)', default: true },
 		{ id: 'start', type: 'boolean', label: 'Nach geprüfter Übertragung starten', description: 'Unterbricht die bisher laufende App.', default: false },
-		{
-			id: 'script',
-			type: 'select',
-			label: 'Skript',
-			description: 'Diese Datei wird auf die Uhr geschrieben.',
-			options: scripts,
-			default: scripts[0]?.value,
-			required: true,
-		},
-		...scripts.map(({ value }) => ({
-			id: nameFieldId(value),
+		...(selected.bangle ? [{
+			id: nameFieldId(selected),
 			type: 'text',
 			label: 'Name auf der Uhr',
-			description: 'Vorbelegt aus dem Dateinamen des gewählten Skripts.',
-			default: clockTitle(value),
-			visibleWhen: { script: value },
-		})),
+			description: `Skript: ${selected.bangle}`,
+			default: selected.title,
+		}] : []),
 		{
 			id: 'install',
 			type: 'boolean',
@@ -76,9 +69,9 @@ programBangle.µParameters = () => {
 };
 programBangle.µAgent = {
 	"schemaVersion": 1,
-	"purpose": "Preview a clock script from bangle/ or transfer it to the selected Bangle with backup and read-back verification.",
+	"purpose": "Preview or transfer the Bangle script of the clock selected in the project control 'clock' to a Bangle, with backup and read-back verification.",
 	"prerequisites": [
-		"Clock script below bangle/, gulp-mu-gulp-api and the local microGulp experimental API.",
+		"Project control 'clock' set to a clock with a Bangle script (gulp/clocks.mjs); gulp-mu-gulp-api and the local microGulp experimental API.",
 		"For transfer: dashboard confirmations, Python device runtime, a Bangle advertising over BLE (not connected to a phone) and accessible BLE UART services."
 	],
 	"sideEffects": [
@@ -105,6 +98,7 @@ export async function previewBangle() {
 previewBangle.µDisplayName = "Preview Bangle fly clock<context=\"µDisplayName\"/>".i18xRegister();
 previewBangle.µDescription = "Run bangle/FlyClock.js in the browser on a 176 × 176 canvas that mimics the Bangle.js 2 display.<context=\"µDescription\"/>".i18xRegister();
 previewBangle.µGroup = "Previews<context=\"µGroup\"/>".i18xRegister();
+previewBangle.µVisible = () => clock().value === 'flies';
 previewBangle.µOrder = 520;
 previewBangle.µAgent = {
 	"schemaVersion": 1,
@@ -155,16 +149,17 @@ buildEsp32.µAgent = {
 };
 
 export async function startEsp32() {
-	await tasks.servePage(root, 'esp32/sim/');
+	await tasks.servePage(root, `esp32/sim/?face=${clock().web}`);
 }
 
-startEsp32.µDisplayName = "Start ESP32 simulator<context=\"µDisplayName\"/>".i18xRegister();
-startEsp32.µDescription = "Serve the browser simulator for the 410 × 502 AMOLED watch face without caching and open it.<context=\"µDescription\"/>".i18xRegister();
+startEsp32.µDisplayName = "ESP32 simulator: <clockLabel/><context=\"µDisplayName\"/>".i18xRegister();
+startEsp32.µDescription = "Serve the browser simulator for the 410 × 502 AMOLED display without caching and open it with the selected clock.<context=\"µDescription\"/>".i18xRegister();
 startEsp32.µGroup = "Previews<context=\"µGroup\"/>".i18xRegister();
 startEsp32.µOrder = 500;
+startEsp32.µVisible = () => !!clock().web;
 startEsp32.µAgent = {
 	"schemaVersion": 1,
-	"purpose": "Run a local no-cache HTTP server for the repository and open esp32/sim/ in Cursor or the default browser.",
+	"purpose": "Run a local no-cache HTTP server for the repository and open esp32/sim/?face=<face of the selected clock> in Cursor or the default browser.",
 	"prerequisites": ["Port 8765 or any free local port."],
 	"sideEffects": ["Listens on 127.0.0.1 until the task is cancelled; opens a browser tab."],
 	"artifacts": [],
@@ -198,28 +193,30 @@ buildPc.µAgent = {
 };
 
 export async function startPc() {
+	const selected = clock();
+	if (!selected.pc) throw new Error(`Für „${selected.label}“ gibt es keine PC-Uhr.`);
 	const switches = [];
 	if (flag(GetParameter('setup', false))) switches.push('-Setup');
-	if (GetParameter('face', 'flies') === 'marbles') switches.push('-marbles');
+	if (selected.pc === 'marbles') switches.push('-marbles');
 	if (flag(GetParameter('closeup', false))) switches.push('-closeup');
 	await tasks.runUnreal(root, switches);
 }
 
-startPc.µDisplayName = "Start PC clock<context=\"µDisplayName\"/>".i18xRegister();
-startPc.µDescription = "Build FlyClock3D, set up missing assets and start the clock in a 820 × 1004 window.<context=\"µDescription\"/>".i18xRegister();
+startPc.µDisplayName = "Start PC clock: <clockLabel/><context=\"µDisplayName\"/>".i18xRegister();
+startPc.µDescription = "Build FlyClock3D, set up missing assets and start the selected clock in a 820 × 1004 window.<context=\"µDescription\"/>".i18xRegister();
 startPc.µGroup = "PC<context=\"µGroup\"/>".i18xRegister();
 startPc.µOrder = 1210;
+startPc.µVisible = () => !!clock().pc;
 startPc.µParameters = {
 	title: 'PC-Uhr starten',
 	fields: [
-		{ id: 'face', type: 'select', label: 'Zifferblatt', options: [{ value: 'flies', label: 'Fliegen' }, { value: 'marbles', label: 'Oxyd-Murmeln' }], default: 'flies' },
 		{ id: 'closeup', type: 'boolean', label: 'Nahansicht der Ziffern', default: false },
 		{ id: 'setup', type: 'boolean', label: 'Assets neu einrichten', description: 'Materialien, Summton, Waldszene und Fliegenscan neu anlegen.', default: false },
 	],
 };
 startPc.µAgent = {
 	"schemaVersion": 1,
-	"purpose": "Run pc/FlyClock3D/run.ps1: build, fetch and import missing assets, then launch the clock window.",
+	"purpose": "Run pc/FlyClock3D/run.ps1 for the clock selected in the project control 'clock' (flies or marbles): build, fetch and import missing assets, then launch the clock window.",
 	"prerequisites": ["Unreal Engine 5, Python for the asset download and network access when Import/polyhaven is missing."],
 	"sideEffects": [
 		"Builds the project, may copy StarterContent from the engine and download Poly Haven assets.",
@@ -234,13 +231,14 @@ startPc.µAgent = {
 // ---------------------------------------------------------------- Wallpaper Engine
 
 export async function buildWallpaper() {
-	await tasks.buildWallpaper(root, { deploy: flag(GetParameter('deploy', true)) });
+	await tasks.buildWallpaper(root, { deploy: flag(GetParameter('deploy', true)), face: clock().web });
 }
 
-buildWallpaper.µDisplayName = "Build wallpaper<context=\"µDisplayName\"/>".i18xRegister();
-buildWallpaper.µDescription = "Package the web wallpaper into dist/wallpaper and optionally install it into Wallpaper Engine.<context=\"µDescription\"/>".i18xRegister();
+buildWallpaper.µDisplayName = "Build wallpaper: <clockLabel/><context=\"µDisplayName\"/>".i18xRegister();
+buildWallpaper.µDescription = "Package the web wallpaper with the selected clock as default face into dist/wallpaper and optionally install it into Wallpaper Engine.<context=\"µDescription\"/>".i18xRegister();
 buildWallpaper.µGroup = "Wallpaper Engine<context=\"µGroup\"/>".i18xRegister();
 buildWallpaper.µOrder = 1300;
+buildWallpaper.µVisible = () => !!clock().web;
 buildWallpaper.µParameters = {
 	title: 'Wallpaper bauen',
 	fields: [
@@ -249,7 +247,7 @@ buildWallpaper.µParameters = {
 };
 buildWallpaper.µAgent = {
 	"schemaVersion": 1,
-	"purpose": "Run wallpaper/build.py to package wallpaper and shared faces into dist/wallpaper; optionally copy it to Wallpaper Engine myprojects.",
+	"purpose": "Run wallpaper/build.py to package wallpaper and shared faces into dist/wallpaper, set the selected clock as default face in its project.json; optionally copy it to Wallpaper Engine myprojects.",
 	"prerequisites": ["Python 3; for deploy a Steam installation with Wallpaper Engine."],
 	"sideEffects": [
 		"Deletes and re-creates dist/wallpaper.",
@@ -262,16 +260,17 @@ buildWallpaper.µAgent = {
 };
 
 export async function startWallpaper() {
-	await tasks.servePage(root, 'wallpaper/');
+	await tasks.servePage(root, `wallpaper/?face=${clock().web}`);
 }
 
-startWallpaper.µDisplayName = "Preview wallpaper<context=\"µDisplayName\"/>".i18xRegister();
-startWallpaper.µDescription = "Serve the wallpaper sources without caching and open them in the browser.<context=\"µDescription\"/>".i18xRegister();
+startWallpaper.µDisplayName = "Wallpaper preview: <clockLabel/><context=\"µDisplayName\"/>".i18xRegister();
+startWallpaper.µDescription = "Serve the wallpaper sources without caching and open them in the browser with the selected clock.<context=\"µDescription\"/>".i18xRegister();
 startWallpaper.µGroup = "Previews<context=\"µGroup\"/>".i18xRegister();
 startWallpaper.µOrder = 510;
+startWallpaper.µVisible = () => !!clock().web;
 startWallpaper.µAgent = {
 	"schemaVersion": 1,
-	"purpose": "Run a local no-cache HTTP server for the repository and open wallpaper/ in Cursor or the default browser.",
+	"purpose": "Run a local no-cache HTTP server for the repository and open wallpaper/?face=<face of the selected clock> in Cursor or the default browser.",
 	"prerequisites": ["Port 8765 or any free local port."],
 	"sideEffects": ["Listens on 127.0.0.1 until the task is cancelled; opens a browser tab."],
 	"artifacts": [],

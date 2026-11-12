@@ -96,7 +96,8 @@ async function boot() {
 	}).catch((error) => {
 		console.error(error);
 	});
-	setFace("flies");
+	const requested = new URLSearchParams(location.search).get("face");
+	setFace(faceButtons.some((button) => button.dataset.face === requested) ? requested : "flies");
 	setMuted(false);
 	clack.load(`${ROOT}/assets/oxyd/clack.wav`).catch((error) => {
 		console.error(error);

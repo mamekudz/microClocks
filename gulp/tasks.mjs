@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Log } from 'gulp-mu-gulp-api';
 import { PROJECTS, capture, findPio, openUrl, run, serveStatic, untilCancelled } from './common.mjs';
@@ -42,11 +42,18 @@ function wallpaperEngineProjects() {
 
 /**
  * @param {string} root
- * @param {{ deploy: boolean }} options
+ * @param {{ deploy: boolean, face?: string }} options `face`: Vorgabe für die Wallpaper-Eigenschaft "Zifferblatt"
  */
-export async function buildWallpaper(root, { deploy }) {
+export async function buildWallpaper(root, { deploy, face }) {
 	await run('python', [join(root, 'wallpaper', 'build.py')]);
 	const dist = join(root, 'dist', 'wallpaper');
+	if (face) {
+		const file = join(dist, 'project.json');
+		const project = JSON.parse(readFileSync(file, 'utf8'));
+		project.general.properties.face.value = face;
+		writeFileSync(file, JSON.stringify(project, null, '\t'));
+		Log(`Zifferblatt-Vorgabe: ${face}`);
+	}
 	if (!deploy) return;
 	const projects = wallpaperEngineProjects();
 	if (!existsSync(join(projects, '..'))) throw new Error(`Wallpaper Engine nicht gefunden: ${projects}`);
