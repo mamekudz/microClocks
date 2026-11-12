@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="utf-8">
+	<title>Bangle Fliegenuhr</title>
+	<style>
+		body { margin: 0; padding: 16px; background: #222; color: #aaa; font: 14px system-ui, sans-serif; }
+		canvas { width: 528px; height: 528px; image-rendering: pixelated; background: #fff; border-radius: 24px; cursor: pointer; }
+	</style>
+</head>
+<body>
+	<canvas id="glass" width="176" height="176"></canvas>
+	<p>Bangle.js 2 · 176 × 176 · Klick scheucht die Fliegen auf</p>
+	<script>
+		// Nachbildung der Espruino-Grafik, soweit FlyClock.js sie benutzt.
+		const canvas = document.getElementById('glass');
+		const ctx = canvas.getContext('2d');
+		let color = '#000';
+		const toColor = (r, gg, b) => gg === undefined ? (r ? '#fff' : '#000') : `rgb(${r * 255},${gg * 255},${b * 255})`;
+		const path = (p, closed) => {
+			ctx.beginPath();
+			for (let i = 0; i < p.length; i += 2) ctx.lineTo(p[i] + .5, p[i + 1] + .5);
+			if (closed) ctx.closePath();
+		};
+		const g = {
+			theme: { fg: 0, bg: 1 },
+			getWidth: () => canvas.width,
+			getHeight: () => canvas.height,
+			reset() { color = '#000'; return g; },
+			clear() { ctx.clearRect(0, 0, canvas.width, canvas.height); return g; },
+			clearRect(x0, y0, x1, y1) { ctx.clearRect(x0, y0, x1 - x0 + 1, y1 - y0 + 1); return g; },
+			setColor(r, gg, b) { color = toColor(r, gg, b); return g; },
+			drawLine(x0, y0, x1, y1) { ctx.strokeStyle = color; path([x0, y0, x1, y1]); ctx.stroke(); return g; },
+			drawPoly(p, closed) { ctx.strokeStyle = color; path(p, closed); ctx.stroke(); return g; },
+			fillPoly(p) { ctx.fillStyle = color; path(p, true); ctx.fill(); return g; },
+			fillCircle(x, y, r) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); return g; },
+		};
+		const listeners = {};
+		const Bangle = { setUI() {}, on(event, fn) { listeners[event] = fn; }, removeListener() {}, loadWidgets() {}, isLocked: () => false };
+		const require = () => ({ hide() {}, show() {} });
+		canvas.addEventListener('click', (event) => {
+			const scale = canvas.width / canvas.getBoundingClientRect().width;
+			listeners.touch?.(1, { x: event.offsetX * scale, y: event.offsetY * scale });
+		});
+		fetch('../FlyClock.js', { cache: 'no-store' }).then((response) => response.text()).then((code) => eval(code));
+	</script>
+</body>
+</html>

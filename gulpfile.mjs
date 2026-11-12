@@ -93,6 +93,25 @@ programBangle.µAgent = {
 	"cancellation": "Before connection confirmation no connection is made; after writes begin cancellation or radio failure has no automatic rollback."
 };
 
+export async function previewBangle() {
+	await tasks.servePage(root, 'bangle/preview/flyclock.html');
+}
+
+previewBangle.µDisplayName = "Preview Bangle fly clock<context=\"µDisplayName\"/>".i18xRegister();
+previewBangle.µDescription = "Run bangle/FlyClock.js in the browser on a 176 × 176 canvas that mimics the Bangle.js 2 display.<context=\"µDescription\"/>".i18xRegister();
+previewBangle.µGroup = "Previews<context=\"µGroup\"/>".i18xRegister();
+previewBangle.µOrder = 520;
+previewBangle.µAgent = {
+	"schemaVersion": 1,
+	"purpose": "Run a local no-cache HTTP server for the repository and open bangle/preview/flyclock.html in Cursor or the default browser.",
+	"prerequisites": ["Port 8765 or any free local port."],
+	"sideEffects": ["Listens on 127.0.0.1 until the task is cancelled; opens a browser tab. No watch access."],
+	"artifacts": [],
+	"limitations": ["Emulates only the Graphics and Bangle calls FlyClock.js uses; drawing speed and colours differ from the watch."],
+	"repeatability": "Can be restarted at any time.",
+	"cancellation": "Cancelling stops the server; the browser tab stays open without updates."
+};
+
 // ---------------------------------------------------------------- ESP32
 
 export async function buildEsp32() {
@@ -136,8 +155,8 @@ export async function startEsp32() {
 
 startEsp32.µDisplayName = "Start ESP32 simulator<context=\"µDisplayName\"/>".i18xRegister();
 startEsp32.µDescription = "Serve the browser simulator for the 410 × 502 AMOLED watch face without caching and open it.<context=\"µDescription\"/>".i18xRegister();
-startEsp32.µGroup = "ESP32<context=\"µGroup\"/>".i18xRegister();
-startEsp32.µOrder = 1110;
+startEsp32.µGroup = "Previews<context=\"µGroup\"/>".i18xRegister();
+startEsp32.µOrder = 500;
 startEsp32.µAgent = {
 	"schemaVersion": 1,
 	"purpose": "Run a local no-cache HTTP server for the repository and open esp32/sim/ in Cursor or the default browser.",
@@ -243,8 +262,8 @@ export async function startWallpaper() {
 
 startWallpaper.µDisplayName = "Preview wallpaper<context=\"µDisplayName\"/>".i18xRegister();
 startWallpaper.µDescription = "Serve the wallpaper sources without caching and open them in the browser.<context=\"µDescription\"/>".i18xRegister();
-startWallpaper.µGroup = "Wallpaper Engine<context=\"µGroup\"/>".i18xRegister();
-startWallpaper.µOrder = 1310;
+startWallpaper.µGroup = "Previews<context=\"µGroup\"/>".i18xRegister();
+startWallpaper.µOrder = 510;
 startWallpaper.µAgent = {
 	"schemaVersion": 1,
 	"purpose": "Run a local no-cache HTTP server for the repository and open wallpaper/ in Cursor or the default browser.",
