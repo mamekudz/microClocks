@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Log } from 'gulp-mu-gulp-api';
+import { Log, LogKeyValue } from 'gulp-mu-gulp-api';
 import { PROJECTS, capture, findPio, openUrl, run, serveStatic, untilCancelled } from './common.mjs';
 
 const SIM_PORT = 8765;
@@ -94,6 +95,92 @@ export function commitProject(root, { project, message }) {
 	Log(staged);
 	const subject = definition ? `${definition.label}: ${text}` : text;
 	Log(capture('git', ['commit', '-m', subject, '--', ...paths], root).trim());
+}
+
+/** Python der Bluetooth-Laufzeit, die bangle/tools/native-program.mjs für die Übertragung nutzt. */
+const DEVICE_PYTHON = 'C:/Projects/microGulp/tmp/device-runtime/Scripts/python.exe';
+const PLATFORMIO_INSTALLER = 'https://raw.githubusercontent.com/platformio/platformio-core-installer/master/get-platformio.py';
+
+/** Erste Ausgabezeile eines Befehls oder null, wenn er fehlt oder scheitert. */
+function probe(command, args, cwd) {
+	try {
+		return capture(command, args, cwd).trim().split(/\r?\n/)[0] || 'ok';
+	} catch {
+		return null;
+	}
+}
+
+/** @type {{ time: number, missing: string[] } | undefined} */
+let setupCache;
+
+/**
+ * Schnelle Prüfung für die Hervorhebung des Einrichten-Tasks; läuft bei jedem Einlesen des Gulpfiles.
+ * @param {string} root
+ * @returns {string[]} fehlende Einrichtungen
+ */
+export function missingSetup(root) {
+	if (setupCache && Date.now() - setupCache.time < 5000) return setupCache.missing;
+	const missing = [];
+	setupCache = { time: Date.now(), missing };
+	if (!existsSync(join(root, 'node_modules', 'gulp-mu-gulp-api'))) missing.push('npm-Pakete');
+	if (!probe('python', ['-c', 'import PIL'])) missing.push('Python mit Pillow');
+	if (!existsSync(findPio()) && !probe('pio', ['--version'])) missing.push('PlatformIO');
+	const epic = 'C:\\Program Files\\Epic Games';
+	if (!existsSync(epic) || !readdirSync(epic).some((name) => /^UE_5\./.test(name))) missing.push('Unreal Engine 5');
+	if (!existsSync(DEVICE_PYTHON)) missing.push('Bluetooth-Laufzeit');
+	return missing;
+}
+
+/**
+ * Prüft die Werkzeuge aller Teilprojekte und installiert auf Wunsch, was sich automatisch nachinstallieren lässt:
+ * npm-Pakete, Pillow (Sprite-Generator) und PlatformIO. Unreal, Visual Studio, Wallpaper Engine und die
+ * Bluetooth-Laufzeit werden nur geprüft.
+ * @param {string} root
+ * @param {{ install: boolean }} options
+ */
+export async function setup(root, { install }) {
+	if (install) await run('npm', ['install'], { cwd: root, shell: true });
+
+	let pillow = probe('python', ['-c', 'import PIL; print(PIL.__version__)']);
+	if (!pillow && install && probe('python', ['--version'])) {
+		await run('python', ['-m', 'pip', 'install', '--user', 'Pillow']);
+		pillow = probe('python', ['-c', 'import PIL; print(PIL.__version__)']);
+	}
+
+	let pio = probe(findPio(), ['--version']);
+	if (!pio && install && probe('python', ['--version'])) {
+		const installer = join(tmpdir(), 'get-platformio.py');
+		const response = await fetch(PLATFORMIO_INSTALLER);
+		if (!response.ok) throw new Error(`PlatformIO-Installer nicht geladen (HTTP ${response.status}).`);
+		writeFileSync(installer, Buffer.from(await response.arrayBuffer()));
+		await run('python', [installer]);
+		pio = probe(findPio(), ['--version']);
+	}
+
+	const epic = 'C:\\Program Files\\Epic Games';
+	const unreal = existsSync(epic) ? readdirSync(epic).filter((name) => /^UE_5\./.test(name)).sort().pop() : undefined;
+	const vswhere = 'C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe';
+	const visualStudio = existsSync(vswhere)
+		? probe(vswhere, ['-latest', '-products', '*', '-requires', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64', '-property', 'displayName'])
+		: null;
+	const engine = wallpaperEngineProjects();
+	const bluetooth = existsSync(DEVICE_PYTHON) ? probe(DEVICE_PYTHON, ['-c', 'import bleak, serial; print("bleak", bleak.__version__ if hasattr(bleak, "__version__") else "")']) : null;
+
+	const status = (value, missing) => value ? `✔ ${value === 'ok' ? 'vorhanden' : value}` : `✘ ${missing}`;
+	const items = [
+		{ key: 'Node.js / npm-Pakete', value: status(existsSync(join(root, 'node_modules', 'gulp-mu-gulp-api')) && process.version, 'npm install ausführen') },
+		{ key: 'Python', value: status(probe('python', ['--version']), 'Python 3 installieren und in den PATH aufnehmen') },
+		{ key: 'Pillow (Bangle-Sprites)', value: status(pillow, 'python -m pip install --user Pillow') },
+		{ key: 'PlatformIO (ESP32)', value: status(pio, 'Einrichten mit „Fehlendes installieren“ oder PlatformIO-Erweiterung installieren') },
+		{ key: 'Unreal Engine 5 (PC)', value: status(unreal, 'Über den Epic Games Launcher installieren') },
+		{ key: 'Visual Studio C++ (PC)', value: status(visualStudio, 'Visual Studio mit „Desktopentwicklung mit C++“ installieren') },
+		{ key: 'Wallpaper Engine', value: status(existsSync(join(engine, '..', '..')) && 'vorhanden', 'Über Steam installieren (nur für „Wallpaper bauen“ mit Installation)') },
+		{ key: 'Bluetooth-Laufzeit (Bangle)', value: status(bluetooth, `${DEVICE_PYTHON} mit bleak und pyserial fehlt (Teil der µGulp-Entwicklungsumgebung)`) },
+	];
+	setupCache = undefined;
+	LogKeyValue({ title: 'Einrichtung', items });
+	const missing = items.filter((item) => item.value.startsWith('✘')).length;
+	Log(missing ? `${missing} Voraussetzung(en) fehlen; siehe Hinweise oben.` : 'Alles eingerichtet.');
 }
 
 /** Ordnernamen, deren Inhalt sich neu bauen oder herunterladen lässt. */

@@ -17,6 +17,51 @@ const nameFieldId = (entry) => 'name_' + entry.value.replace(/[^A-Za-z0-9_]/g, '
 
 export const µControls = [clockControl(root)];
 
+// ---------------------------------------------------------------- Einrichtung
+
+export async function setup() {
+	await tasks.setup(root, { install: flag(GetParameter('install', true)) });
+}
+
+setup.µDisplayName = "Set up<context=\"µDisplayName\"/>".i18xRegister();
+setup.µDescription = "Checks Node, Python with Pillow, PlatformIO, Unreal Engine 5, Visual Studio, Wallpaper Engine and the Bluetooth runtime; installs npm packages, Pillow and PlatformIO if requested.<context=\"µDescription\"/>".i18xRegister();
+setup.µGroup = "Setup<context=\"µGroup\"/>".i18xRegister();
+setup.µOrder = 100;
+setup.µAttention = () => tasks.missingSetup(root).length > 0;
+setup.µAttentionTooltip = () => `Fehlt: ${tasks.missingSetup(root).join(', ')}`;
+setup.µParameters = {
+	title: 'Einrichten',
+	fields: [
+		{
+			id: 'install',
+			type: 'boolean',
+			label: 'Fehlendes installieren',
+			description: 'npm install, Pillow per pip und PlatformIO per offiziellem Installer. Unreal, Visual Studio, Wallpaper Engine und die Bluetooth-Laufzeit werden nur geprüft.',
+			default: true,
+		},
+	],
+};
+setup.µAgent = {
+	"schemaVersion": 1,
+	"purpose": "Check the tools needed by all subprojects and optionally install the automatable ones.",
+	"prerequisites": [
+		"Node.js with npm; for Pillow and PlatformIO installation a 'python' on PATH; internet access for installation."
+	],
+	"sideEffects": [
+		"With install: runs npm install in the project, 'python -m pip install --user Pillow' if Pillow is missing, and downloads and runs the official get-platformio.py if PlatformIO is missing.",
+		"Without install: only runs version checks."
+	],
+	"artifacts": [
+		"node_modules and package-lock.json in the project; Pillow in the Python user site-packages; PlatformIO in ~/.platformio; get-platformio.py in the temp folder."
+	],
+	"limitations": [
+		"Unreal Engine 5, Visual Studio C++, Wallpaper Engine and the Bluetooth runtime (C:/Projects/microGulp/tmp/device-runtime) are only checked, not installed.",
+		"PlatformIO downloads the ESP32 platform only on the first build."
+	],
+	"repeatability": "Repeatable; installed parts are detected and skipped, npm install runs every time install is on.",
+	"cancellation": "Cancelling during an installation may leave a partial npm, pip or PlatformIO installation; rerun the task."
+};
+
 // ---------------------------------------------------------------- Bangle.js
 
 export async function programBangle() {

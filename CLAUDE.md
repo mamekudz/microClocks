@@ -28,6 +28,7 @@ Gulp läuft nur über µGulp (kein lokales `gulp`-Paket; `npx gulp …` scheiter
 
 | Task | Gruppe | Zweck |
 |---|---|---|
+| `setup` | Einrichtung | Prüft Node, Python + Pillow, PlatformIO, Unreal 5, Visual Studio C++, Wallpaper Engine und Bluetooth-Laufzeit; mit `install` (Standard an) `npm install`, Pillow per pip und PlatformIO per `get-platformio.py`. Hervorgehoben (`µAttention`, Tooltip „Fehlt: …“), solange `missingSetup()` etwas findet |
 | `programBangle` | Bangle.js | Uhr-Skript per Bluetooth auf die Uhr übertragen (Standard: nur Vorschau; Schreiben nur mit Bestätigung im Dashboard) |
 | `startEsp32` | Vorschauen | ESP32-Simulator im Browser |
 | `startWallpaper` | Vorschauen | Wallpaper-Quellen im Browser |

@@ -27,12 +27,12 @@ export function flag(value) {
  * Startet ein Programm und reicht die Ausgabe durch. Wirft bei Exitcode ungleich 0.
  * @param {string} command
  * @param {string[]} args
- * @param {{ cwd?: string, env?: NodeJS.ProcessEnv }} [options]
+ * @param {{ cwd?: string, env?: NodeJS.ProcessEnv, shell?: boolean }} [options] `shell` für .cmd-Programme wie npm
  */
 export function run(command, args, options = {}) {
 	Log(`> ${[command, ...args].join(' ')}`);
 	return new Promise((resolveRun, rejectRun) => {
-		const child = spawn(command, args, { cwd: options.cwd, env: options.env ?? process.env, stdio: ['ignore', 'inherit', 'inherit'], windowsHide: true });
+		const child = spawn(command, args, { cwd: options.cwd, env: options.env ?? process.env, shell: options.shell, stdio: ['ignore', 'inherit', 'inherit'], windowsHide: true });
 		child.on('error', rejectRun);
 		child.on('close', (code) => code === 0 ? resolveRun() : rejectRun(new Error(`${command} endete mit Code ${code}.`)));
 	});
