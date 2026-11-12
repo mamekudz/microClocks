@@ -21,3 +21,4 @@ pc/FlyClock3D/Downloads/
 pc/FlyClock3D/Content/StarterContent/
 *.sln
 .vs/
+__pycache__/
