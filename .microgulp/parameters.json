@@ -1,0 +1,15 @@
+{
+	"version": 1,
+	"tasks": {
+		"gulpfile.mjs::programBangle": {
+			"values": {
+				"previewOnly": false,
+				"start": true,
+				"script": "bangle/OxydClock.js",
+				"name": "",
+				"install": true
+			},
+			"savedAt": 1794040285477
+		}
+	}
+}

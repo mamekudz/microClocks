@@ -1,0 +1,7 @@
+{
+	"project": {
+		"title": "microClocks",
+		"logo": "./bangle/assets/bangle-logo.png"
+	},
+	"externalControl": true
+}

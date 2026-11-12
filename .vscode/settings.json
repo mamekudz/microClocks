@@ -1,0 +1,6 @@
+{
+	"microgulp.ideCommandAllowlist": [
+		"workbench.action.openBrowserEditor"
+	],
+	"microgulp.hardwareControl": true
+}

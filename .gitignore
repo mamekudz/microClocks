@@ -1,0 +1,25 @@
+node_modules/
+dist/
+
+# µGulp: lokale Sitzungen, Protokolle und Gerätesicherungen
+.microgulp/control-session.json
+.microgulp/logs/
+.microgulp/device-backups/
+.microgulp/setup-backups/
+.microgulp/recipes/*/node_modules/
+.recipe-state/
+
+# ESP32 / PlatformIO
+esp32/firmware/.pio/
+
+# Unreal
+pc/FlyClock3D/Binaries/
+pc/FlyClock3D/Intermediate/
+pc/FlyClock3D/Saved/
+pc/FlyClock3D/DerivedDataCache/
+pc/FlyClock3D/Import/fly_loop.wav
+pc/FlyClock3D/Import/polyhaven/
+pc/FlyClock3D/Downloads/
+pc/FlyClock3D/Content/StarterContent/
+*.sln
+.vs/

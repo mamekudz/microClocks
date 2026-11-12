@@ -1,0 +1,67 @@
+{
+	"title": "espClock",
+	"description": "Uhr aus Fliegen oder Oxyd-Murmeln, die sich jede Minute neu zu Ziffern formieren. Die Fliegen scheuen den Mauszeiger, Murmeln lassen sich mit gedrückter Maus kippen und anschubsen.",
+	"file": "index.html",
+	"type": "web",
+	"tags": ["Relaxing", "Retro"],
+	"general": {
+		"supportsaudioprocessing": false,
+		"properties": {
+			"face": {
+				"order": 100,
+				"text": "Zifferblatt",
+				"type": "combo",
+				"value": "flies",
+				"options": [
+					{ "label": "Fliegen", "value": "flies" },
+					{ "label": "Murmeln", "value": "marbles" },
+					{ "label": "Oxyd", "value": "oxyd" },
+					{ "label": "Oxyd groß", "value": "oxyd-large" },
+					{ "label": "Oxyd Boden", "value": "oxyd-floor" }
+				]
+			},
+			"floor": {
+				"order": 101,
+				"text": "Boden bei Oxyd Boden",
+				"type": "combo",
+				"value": "slate",
+				"options": [
+					{ "label": "Schiefer", "value": "slate" },
+					{ "label": "Buche", "value": "beech" },
+					{ "label": "Dielen", "value": "planks" }
+				]
+			},
+			"size": {
+				"order": 102,
+				"text": "Größe in Prozent",
+				"type": "slider",
+				"value": 100,
+				"min": 50,
+				"max": 160,
+				"step": 5,
+				"fraction": false
+			},
+			"hover": {
+				"order": 103,
+				"text": "Fliegen scheuen den Mauszeiger",
+				"type": "bool",
+				"value": true
+			},
+			"sound": {
+				"order": 104,
+				"text": "Ton",
+				"type": "bool",
+				"value": true
+			},
+			"volume": {
+				"order": 105,
+				"text": "Lautstärke",
+				"type": "slider",
+				"value": 70,
+				"min": 0,
+				"max": 100,
+				"fraction": false
+			}
+		}
+	}
+}

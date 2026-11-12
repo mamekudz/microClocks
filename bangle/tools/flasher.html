@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Bangle programmieren</title>
+	<style>
+		:root {
+			color-scheme: dark;
+			--bg: #101114;
+			--card: #1a1d22;
+			--line: #2c313a;
+			--text: #e7e4dc;
+			--muted: #a39e93;
+			--accent: #e1b15a;
+			--ok: #8fce7a;
+			--bad: #e07a6a;
+		}
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			min-height: 100vh;
+			background: var(--bg);
+			color: var(--text);
+			font: 15px/1.45 "Segoe UI", sans-serif;
+		}
+		main {
+			max-width: 520px;
+			margin: 0 auto;
+			padding: 28px 20px 40px;
+		}
+		h1 { font-size: 22px; font-weight: 650; margin: 0 0 6px; }
+		.meta { color: var(--muted); margin: 0 0 18px; }
+		.card {
+			background: var(--card);
+			border: 1px solid var(--line);
+			border-radius: 12px;
+			padding: 16px;
+		}
+		ol { margin: 0; padding-left: 18px; color: var(--muted); }
+		ol li + li { margin-top: 4px; }
+		button {
+			appearance: none;
+			border: 0;
+			border-radius: 10px;
+			padding: 12px 14px;
+			font: inherit;
+			font-weight: 650;
+			cursor: pointer;
+		}
+		button:disabled { opacity: 0.55; cursor: default; }
+		.actions { display: flex; gap: 8px; margin-top: 16px; }
+		#go { flex: 1; background: var(--accent); color: #1b1408; }
+		#close { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+		.bar {
+			height: 8px;
+			margin-top: 16px;
+			border-radius: 99px;
+			background: #2a2e35;
+			overflow: hidden;
+		}
+		#bar { height: 100%; width: 0; background: var(--accent); }
+		#log {
+			margin-top: 14px;
+			min-height: 120px;
+			max-height: 240px;
+			overflow: auto;
+			white-space: pre-wrap;
+			font-family: Consolas, "Cascadia Mono", monospace;
+			font-size: 12.5px;
+			color: #d5d0c6;
+		}
+		#log .ok { color: var(--ok); }
+		#log .bad { color: var(--bad); }
+	</style>
+</head>
+<body>
+	<main>
+		<h1>Bangle programmieren</h1>
+		<p class="meta" id="meta">Skript wird geladen …</p>
+		<section class="card">
+			<ol>
+				<li>Uhr aufwecken, Bluetooth am Rechner anlassen.</li>
+				<li>Verbinden und in der Liste die Bangle auswählen.</li>
+				<li>Der Tab kann zu, sobald die Uhr neu startet.</li>
+			</ol>
+			<div class="bar" aria-hidden="true"><div id="bar"></div></div>
+			<div class="actions">
+				<button id="go" type="button" disabled>Verbinden und programmieren</button>
+				<button id="close" type="button">Schließen</button>
+			</div>
+		</section>
+		<div id="log" role="log" aria-live="polite"></div>
+	</main>
+	<script>
+		const SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+		const TX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+		const RX = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+		const encoder = new TextEncoder();
+
+		const meta = document.querySelector('#meta');
+		const go = document.querySelector('#go');
+		const close = document.querySelector('#close');
+		const logBox = document.querySelector('#log');
+		const bar = document.querySelector('#bar');
+
+		let program = null;
+		let lastError = '';
+		let busy = false;
+		let finished = false;
+
+		setInterval(() => {
+			if (!finished) fetch('/api/ping', { method: 'POST' }).catch(() => {});
+		}, 3000);
+
+		function delay(ms) {
+			return new Promise((resolve) => setTimeout(resolve, ms));
+		}
+
+		function hasPrompt(slice) {
+			return /(?:^|[\r\n])>\s*$/.test(slice);
+		}
+
+		function addLog(text, kind) {
+			const line = document.createElement('div');
+			if (kind) line.className = kind;
+			line.textContent = text;
+			logBox.appendChild(line);
+			logBox.scrollTop = logBox.scrollHeight;
+		}
+
+		async function report(text, kind) {
+			addLog(text, kind);
+			if (kind === 'bad') lastError = text;
+			await fetch('/api/log', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ text }),
+			}).catch(() => {});
+		}
+
+		async function postResult(type, message) {
+			finished = true;
+			await fetch('/api/result', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ type, message }),
+			}).catch(() => {});
+		}
+
+		class Link {
+			constructor() {
+				this.buffer = '';
+				this.paused = false;
+				this.device = null;
+				this.tx = null;
+			}
+
+			async connect() {
+				if (!navigator.bluetooth) {
+					throw new Error('Dieser Browser kann kein Bluetooth.');
+				}
+				const started = performance.now();
+				let device;
+				try {
+					device = await navigator.bluetooth.requestDevice({
+						filters: [
+							{ namePrefix: 'Bangle' },
+							{ services: [SERVICE] },
+						],
+						optionalServices: [SERVICE],
+					});
+				} catch (error) {
+					if (error && error.name === 'NotFoundError' && performance.now() - started < 700) {
+						const blocked = new Error('Der Cursor-Tab hat die Bluetooth-Liste sofort geschlossen. Hier lässt sich keine Uhr auswählen.');
+						blocked.name = 'ChooserBlocked';
+						throw blocked;
+					}
+					throw error;
+				}
+				const server = await device.gatt.connect();
+				const service = await server.getPrimaryService(SERVICE);
+				this.tx = await service.getCharacteristic(TX);
+				const rx = await service.getCharacteristic(RX);
+				rx.addEventListener('characteristicvaluechanged', (event) => this.onNotify(event.target.value));
+				await rx.startNotifications();
+				this.device = device;
+				device.addEventListener('gattserverdisconnected', () => {
+					this.paused = false;
+				});
+			}
+
+			onNotify(view) {
+				let text = '';
+				for (let index = 0; index < view.byteLength; index += 1) {
+					const byte = view.getUint8(index);
+					if (byte === 0x13) { this.paused = true; continue; }
+					if (byte === 0x11) { this.paused = false; continue; }
+					if (byte === 0) continue;
+					text += String.fromCharCode(byte);
+				}
+				this.buffer += text;
+			}
+
+			connected() {
+				return !!(this.device && this.device.gatt.connected);
+			}
+
+			async writeBytes(bytes) {
+				for (let offset = 0; offset < bytes.length; offset += 20) {
+					const started = Date.now();
+					while (this.paused) {
+						if (Date.now() - started > 8000) throw new Error('Die Uhr hat den Empfang angehalten und nicht wieder freigegeben.');
+						await delay(20);
+					}
+					if (!this.connected()) throw new Error('Bluetooth-Verbindung verloren.');
+					await this.tx.writeValue(bytes.subarray(offset, Math.min(offset + 20, bytes.length)));
+				}
+			}
+
+			waitFor(mark, timeoutMs) {
+				return new Promise((resolve, reject) => {
+					const started = Date.now();
+					const timer = setInterval(() => {
+						const slice = this.buffer.slice(mark);
+						if (hasPrompt(slice)) {
+							clearInterval(timer);
+							resolve(slice);
+							return;
+						}
+						if (!this.connected()) {
+							clearInterval(timer);
+							reject(new Error('Bluetooth-Verbindung verloren.'));
+							return;
+						}
+						if (Date.now() - started > timeoutMs) {
+							clearInterval(timer);
+							const preview = slice.replace(/\s+/g, ' ').trim().slice(0, 180);
+							reject(new Error(preview ? `Zeitüberschreitung. Antwort: ${preview}` : 'Zeitüberschreitung. Die Uhr hat nicht geantwortet.'));
+						}
+					}, 40);
+				});
+			}
+
+			async breakToPrompt() {
+				const mark = this.buffer.length;
+				for (let attempt = 1; attempt <= 5; attempt += 1) {
+					await this.writeBytes(Uint8Array.of(0x03));
+					try {
+						await this.waitFor(mark, 900);
+						return;
+					} catch (error) {
+						if (hasPrompt(this.buffer.slice(mark))) return;
+						if (attempt === 5) throw new Error('Keine Eingabe von der Uhr. Uhr aufwecken und erneut verbinden.');
+					}
+				}
+			}
+
+			async command(line) {
+				const mark = this.buffer.length;
+				await this.writeBytes(encoder.encode(`\x10${line}\n`));
+				const response = await this.waitFor(mark, 15000);
+				if (response.includes('Uncaught')) {
+					throw new Error(response.replace(/\s+/g, ' ').trim().slice(0, 400));
+				}
+				return response;
+			}
+		}
+
+		async function programWatch() {
+			if (!program || busy) return;
+			busy = true;
+			lastError = '';
+			programWatch.lastDecade = 0;
+			go.disabled = true;
+			close.disabled = true;
+			bar.style.width = '0%';
+			const link = new Link();
+			try {
+				await report(`Verbinde für ${program.script} …`);
+				await link.connect();
+				await report(`Verbunden mit ${link.device.name || 'der Uhr'}.`);
+				await link.breakToPrompt();
+				const steps = program.commands;
+				for (let index = 0; index < steps.length; index += 1) {
+					const step = steps[index];
+					if (step.final) {
+						await link.writeBytes(encoder.encode(`\x10${step.line}\n`));
+						bar.style.width = '100%';
+						break;
+					}
+					await link.command(step.line);
+					const percent = Math.round(((index + 1) / steps.length) * 100);
+					bar.style.width = `${percent}%`;
+					const decade = Math.floor(percent / 25) * 25;
+					if (decade >= 25 && decade !== programWatch.lastDecade) {
+						programWatch.lastDecade = decade;
+						await report(`${decade}% von ${program.script}`);
+						await fetch('/api/progress', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ value: decade / 100, label: program.script }),
+						}).catch(() => {});
+					}
+				}
+				const message = program.install
+					? `${program.title} läuft jetzt als Uhr (${program.fileName}).`
+					: `${program.script} läuft zum Test. Nach einem Neustart bleibt die bisherige Uhr.`;
+				await report(message, 'ok');
+				await postResult('success', message);
+				go.hidden = true;
+				close.textContent = 'Tab schließen';
+			} catch (error) {
+				const message = error && error.name === 'NotFoundError'
+					? 'Auswahl abgebrochen.'
+					: (error && error.message) || 'Übertragung fehlgeschlagen.';
+				await report(message, 'bad');
+				const cancelled = error && error.name === 'NotFoundError';
+				if (!cancelled) {
+					await fetch('/api/result', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ type: 'error', message }),
+					}).catch(() => {});
+				}
+				go.disabled = false;
+				go.textContent = 'Erneut versuchen';
+			} finally {
+				busy = false;
+				close.disabled = false;
+			}
+		}
+
+		go.addEventListener('click', () => { programWatch(); });
+		close.addEventListener('click', () => {
+			if (busy) return;
+			postResult('close', lastError);
+		});
+
+		fetch('/api/program').then((response) => response.json()).then((data) => {
+			program = data;
+			document.title = data.title || 'Bangle programmieren';
+			const mode = data.install ? `wird als Uhr installiert (${data.fileName})` : 'nur testen, bisherige Uhr bleibt erhalten';
+			meta.textContent = `${data.script} · ${data.bytes} Byte · ${mode}`;
+			go.disabled = !navigator.bluetooth;
+			if (!navigator.bluetooth) {
+				addLog('Dieser Browser kann kein Bluetooth. Edge oder Chrome verwenden.', 'bad');
+			}
+		}).catch((error) => {
+			meta.textContent = 'Das Skript konnte nicht geladen werden.';
+			addLog(error.message || 'Ladefehler', 'bad');
+		});
+	</script>
+</body>
+</html>

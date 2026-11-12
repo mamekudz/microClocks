@@ -1,0 +1,8 @@
+{
+	"name": "microclocks",
+	"private": true,
+	"type": "module",
+	"dependencies": {
+		"gulp-mu-gulp-api": "^0.8.0"
+	}
+}

@@ -1,0 +1,19 @@
+---
+description: Vorhandene Projekt-Tasks bevorzugen und fehlende Agent-Metadaten ergänzen
+alwaysApply: true
+---
+
+# Vorhandene Projekt-Tasks zuerst prüfen
+
+- Vor eigenen Shell-Befehlen, neuen Tasks oder Ersatzimplementierungen zuerst das richtige Projekt mit `list_projects` wählen, `list_tasks` abfragen und passende Kandidaten mit `get_task` prüfen.
+- Geeignete vorhandene Tasks bevorzugen. Parameter, Voraussetzungen, Nebenwirkungen und Ergebnisse prüfen. Eine konkrete Lücke benennen, bevor ein neuer Task vorgeschlagen wird.
+- Ohne verfügbare MCP-Anbindung das Gulpfile und importierte Taskquellen statisch lesen und diese Einschränkung nennen. Zur Erkennung keinen Projektcode ausführen.
+- Erkennen ist keine Startfreigabe. Bei Rezeptvorbereitungen keine Tasks starten; Ausführung getrennt über den vorhandenen Freigabeablauf anfordern.
+- Bei der beauftragten Task-Erstellung oder Anpassung fehlende `µDescription` und `µAgent`-Angaben in die Änderungsvorschau aufnehmen. Vorhandene Angaben erhalten und nur fehlende Felder ergänzen.
+- `µDescription`: en-US-Quelltext mit `<context="µDescription"/>` und `.i18xRegister()`; Übersetzungen unter `i18x/gulp/`.
+- `µAgent`: `schemaVersion: 1`, `purpose`; ergänzend `prerequisites`, `sideEffects`, `artifacts`, `limitations` als String-Arrays sowie `repeatability`, `cancellation` als Strings.
+- Angaben aus der Implementierung ableiten. Keine Pfade, Garantien, sichere Abbrüche oder Wiederholbarkeit erfinden. Unklarheiten erfragen; ungültige oder widersprüchliche vorhandene Metadaten melden, nicht still ersetzen.
+- Metadaten sind Informationen, keine Ausführungsberechtigungen. Das Gulpfile bleibt ohne µGulp-Erweiterung mit Gulp nutzbar; bestehende Projekt-Abhängigkeiten bleiben erforderlich.
+- Vor dem Überschreiben des Gulpfiles eine lesbare Originalkopie sichern und die Änderungen zur Prüfung zeigen.
+
+- Möglichst wenige sichtbare Tasks: Varianten sinnvoll über Parameter bündeln, interne Schritte nicht einzeln exportieren. Manuell entworfene kompakte Abläufe erhalten. Neue Tasks begründen und sichtbare/exportierte Anzahl vorher/nachher nennen. Die gemeinsame Benutzervorlage berücksichtigen, standardmäßig Einrichten, Build, Git, Wartung und Info. Info enthält lesende Aufgaben wie History, Projektgröße oder Status. Keine Tasks nur zum Füllen von Gruppen erzeugen; bestehende CLI-/CI-/Hardware-Aufrufe erhalten.
