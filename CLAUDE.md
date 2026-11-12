@@ -8,9 +8,9 @@ Antworten und Projekttexte sind deutsch; µGulp-Quelltexte (`µDisplayName`, `µ
 
 | Ordner | Inhalt |
 |---|---|
-| `bangle/` | Uhren für Bangle.js 2 (Espruino): `BahnClock.js`, `BahnClockNoSecounds.js`, `MarbleClock.js`, `OxydClock.js`, `FlyClock.js`; Bildquellen in `MarbleClock/`, `OxydClock/` |
+| `bangle/` | Uhren für Bangle.js 2 (Espruino): `BahnClock.js`, `BahnClockNoSecounds.js`, `MarbleClock.js`, `OxydClock.js`, `FliesClock.js`; Bildquellen in `MarbleClock/`, `OxydClock/` |
 | `bangle/tools/` | `program.mjs` (Skriptliste), `native-program.mjs` (Bluetooth-Übertragung), `flasher.html`, `flysprites.py` (Sprite-Generator) |
-| `bangle/preview/` | `flyclock.html`: Browser-Nachbildung des Bangle-Displays für `FlyClock.js` |
+| `bangle/preview/` | `fliesclock.html`: Browser-Nachbildung des Bangle-Displays für `FliesClock.js` |
 | `esp32/sim/` | Browser-Simulator der ESP32-Zifferblätter (410 × 502) |
 | `esp32/firmware/` | PlatformIO-Firmware für Waveshare ESP32-S3-Touch-AMOLED-2.06 |
 | `pc/FlyClock3D/` | Unreal-Engine-5-Projekt (Fliegen und Oxyd-Murmeln in 3D), Start über `run.ps1` |
@@ -32,7 +32,7 @@ Gulp läuft nur über µGulp (kein lokales `gulp`-Paket; `npx gulp …` scheiter
 | `programBangle` | Bangle.js | Uhr-Skript per Bluetooth auf die Uhr übertragen (Standard: nur Vorschau; Schreiben nur mit Bestätigung im Dashboard) |
 | `startEsp32` | Vorschauen | ESP32-Simulator im Browser |
 | `startWallpaper` | Vorschauen | Wallpaper-Quellen im Browser |
-| `previewBangle` | Vorschauen | Bangle-Fliegenuhr im Browser |
+| `previewBangle` | Vorschauen | Bangle-FliesClock im Browser |
 | `buildEsp32` | ESP32 | Firmware bauen, optional `upload` und `port` |
 | `buildPc` | PC | Unreal-Projekt bauen (`run.ps1 -BuildOnly`) |
 | `startPc` | PC | Bauen, fehlende Assets einrichten und Uhr starten (`face`: flies/marbles, `closeup`, `setup`) |
@@ -45,7 +45,7 @@ Gulp läuft nur über µGulp (kein lokales `gulp`-Paket; `npx gulp …` scheiter
 `export const µControls` im Gulpfile deklariert die Auswahl „Uhr“ (Id `clock`) in der µGulp-Steuerleiste; der Wert liegt in `.microgulp/project-controls.json`. Der Katalog steht in `gulp/clocks.mjs` (`CATALOG`): je Uhr optional `bangle` (Skript), `web` (Zifferblatt in `esp32/sim` und `wallpaper`: flies, marbles, oxyd, oxyd-large, oxyd-floor) und `pc` (flies oder marbles). Weitere Skripte unter `bangle/` erscheinen automatisch als eigene Uhr.
 
 - Tasks lesen die Uhr mit `currentClock(root)` (über `GetProjectControl('clock')`).
-- `µVisible` blendet Tasks aus, wenn es die Uhr auf der Plattform nicht gibt; `previewBangle` gibt es nur für „Fliegen“. `buildEsp32`, `buildPc`, `commitProject`, `backup` bleiben immer sichtbar.
+- `µVisible` blendet Tasks aus, wenn es die Uhr auf der Plattform nicht gibt; `previewBangle` gibt es nur für „FliesClock“. `buildEsp32`, `buildPc`, `commitProject`, `backup` bleiben immer sichtbar.
 - Anzeigenamen nutzen den Platzhalter `<clockLabel/>` (auch in `i18x/gulp/de-DE.json`).
 - Simulator und Wallpaper werden mit `?face=…` geöffnet; `buildWallpaper` setzt das Zifferblatt als Vorgabe in `dist/wallpaper/project.json`.
 - `programBangle` fragt nur noch den Namen auf der Uhr ab, mit eigener Feld-Id pro Uhr (`name_<uhr>`), damit µGulp ihn je Uhr merkt.
@@ -76,12 +76,14 @@ Gewünscht ist ausdrücklich eine einfache Kopie, kein NAS-Rezept und keine ZIP-
 ## Bangle.js 2
 
 - Display 176 × 176, 3-Bit-Farben (MIP). Uhren nutzen `Bangle.setUI({ mode: "clock", remove })` für Fast Load; der ganze Code steht in einem `{ … }`-Block.
-- `programBangle` überträgt das Skript der gewählten Uhr (genau eine JS-Datei); die Uhr-Id ergibt sich aus dem Dateinamen, der Name auf der Uhr ist aus dem Dateinamen vorbelegt („FlyClock“ → „Fly Clock“).
+- `programBangle` überträgt das Skript der gewählten Uhr (genau eine JS-Datei); die Uhr-Id ergibt sich aus dem Dateinamen, der Name auf der Uhr ist aus dem Dateinamen vorbelegt („FliesClock“ → „Flies Clock“).
 - Bei der Übertragung sucht `bangle/tools/native-program.mjs` per Bluetooth nach Bangles, lässt eine wählen (die zuletzt benutzte ist vorausgewählt) und speichert sie in `.microgulp/native-device.json`. Erst danach folgen die Bestätigungen für Verbindung/Sicherung und fürs Schreiben. Die Uhr muss eingeschaltet und darf nicht mit Handy/Gadgetbridge verbunden sein. `listClockScripts` überspringt `tools`, `assets`, `node_modules`, `.microgulp`, `.git`.
-- Widgets ausblenden ohne `widget_utils` (das Modul ist bei Einzeldatei-Übertragung nicht sicher vorhanden; ein `try/catch` darum verschluckt den Fehler): `draw` durch eine leere Funktion und `area` durch `""` ersetzen, sonst zeichnet `Bangle.drawWidgets()` beim Entsperren (Licht an) Batterie- und BT-Anzeige samt Leistenhintergrund. Fast-Load-Uhren stellen beides in `remove` wieder her (`FlyClock.js`), Uhren ohne `remove` brauchen das nicht (`OxydClock.js`).
+- Widgets ausblenden ohne `widget_utils` (das Modul ist bei Einzeldatei-Übertragung nicht sicher vorhanden; ein `try/catch` darum verschluckt den Fehler): `draw` durch eine leere Funktion und `area` durch `""` ersetzen, sonst zeichnet `Bangle.drawWidgets()` beim Entsperren (Licht an) Batterie- und BT-Anzeige samt Leistenhintergrund. Fast-Load-Uhren stellen beides in `remove` wieder her (`FliesClock.js`), Uhren ohne `remove` brauchen das nicht (`OxydClock.js`).
 - Espruino schläft automatisch, wenn kein Intervall läuft. Touch-Ereignisse kommen bei gesperrter Uhr nicht an.
 
-### Fliegenuhr (`bangle/FlyClock.js`)
+### FliesClock (`bangle/FliesClock.js`)
+
+- Hieß bis November 2026 `FlyClock.js` (App-Id `flyclock`); eine so übertragene App bleibt auf der Uhr, bis man sie löscht.
 
 - Ohne Ton. Ziffern auf einem ausgedünnten 3×5-Raster (`FONT`, 6 bis 8 Zellen pro Ziffer), eine Fliege pro Zelle. Stunden oben ohne führende Null, Minuten unten.
 - Slot-Ids `Stelle:Zeile:Spalte`; bleibende Zellen behalten ihre Fliege, frei werdende Fliegen fliegen zur nächstgelegenen neuen Zelle, fehlende kommen vom Rand, überzählige fliegen hinaus.
@@ -89,7 +91,7 @@ Gewünscht ist ausdrücklich eine einfache Kopie, kein NAS-Rezept und keine ZIP-
 - Sitzende Fliegen bewegen sich nicht. Das 50-ms-Intervall läuft nur, solange eine Fliege fliegt oder läuft; danach schläft die Uhr bis zum nächsten Minutenwechsel (`setTimeout`) oder einer Berührung. Berührte Fliegen springen weg und kehren zurück. Heftiges Schütteln (3 Beschleunigungssprünge über 0,8 g innerhalb 1 s, `SHAKE_*`) schreckt alle Fliegen auf, danach 3 s Pause. Der `accel`-Listener weckt JS mit der Sensorrate (Standard 12,5 Hz), kostet also etwas Strom. Vorschau: Taste S schüttelt. `FLY_WHEN_LOCKED = false` setzt sie bei gesperrter Uhr ohne Flug.
 - Sprites: Originale aus `shared/assets/fly/flyex.png`, auf schwarzem Grund, 2 bpp mit Palette (transparent, Halo blau, Flügel weiß, Augen rot; Körper transparent). 8 Richtungen × 9 Posen (0 = sitzend mit eingeklappten Flügeln aus Frame 4, 1–3 = Flugbilder, 4–8 = Laufen aus den Frames 5–9; im Flug wechselt `FLAP` gespreizte und eingeklappte Flügel, weil sich die Flugbilder kaum unterscheiden), je 22 × 22 Pixel, zusammen rund 8,7 KB als ArrayBuffer.
 - Der Block zwischen `// <sprites>` und `// </sprites>` wird erzeugt, nicht von Hand bearbeiten: `python bangle/tools/flysprites.py` (braucht Pillow).
-- Vorschau: Task `previewBangle` bzw. `bangle/preview/flyclock.html`. Sie bildet nur die benutzten Grafik- und Bangle-Aufrufe nach (`drawImage` mit Palette, `toColor`, `setBgColor`, `atob`, `E.toArrayBuffer`). Auf der echten Uhr noch nicht getestet.
+- Vorschau: Task `previewBangle` bzw. `bangle/preview/fliesclock.html`. Sie bildet nur die benutzten Grafik- und Bangle-Aufrufe nach (`drawImage` mit Palette, `toColor`, `setBgColor`, `atob`, `E.toArrayBuffer`). Auf der echten Uhr noch nicht getestet.
 
 ## ESP32 (Waveshare ESP32-S3-Touch-AMOLED-2.06)
 
@@ -104,6 +106,8 @@ Gewünscht ist ausdrücklich eine einfache Kopie, kein NAS-Rezept und keine ZIP-
 - `run.ps1` nimmt die neueste Unreal-5-Installation unter `C:\Program Files\Epic Games`, setzt `EngineAssociation` passend, baut `FlyClock3DEditor Win64 Development` und startet die Uhr im Fenster 820 × 1004. Schalter: `-Setup`, `-BuildOnly`, `-closeup`, `-marbles` (Tab wechselt im Spiel).
 - Fehlende Assets: StarterContent wird aus der Engine kopiert, die Waldszene per `Scripts/fetch_assets.py` von Poly Haven geladen, `Scripts/setup_assets.py` legt Materialien, Summton und Fliegenscan an.
 - Im Repository liegt nur die schlanke Kopie ohne `Intermediate`, `Saved`, `Binaries`, `DerivedDataCache`.
+- Die Uhr heißt sichtbar „FliesClock“ (Fenstertitel über `ProjectDisplayedTitle` in `Config/DefaultGame.ini`); Projekt, Modul und Target heißen intern weiter `FlyClock3D`, weil Assets auf `/Script/FlyClock3D` verweisen.
+- Lesbarkeit der Fliegen-Ziffern (`FlyClock.cpp`, `FlyActor.cpp`): Kamera mit 54° Neigung (`CameraPitch`), Fliegen 1,2-fach (`FlyScale`), dunkle, fast durchsichtige Flügel, Nachbearbeitung mit Sättigung 0,75, Kontrast 1,2 und Belichtung −0,1. Kleine Requisiten (unter 40 cm), die in den Ziffernbereich plus 2,5 cm ragen, werden nach `BuildForest` entfernt.
 
 ## Wallpaper Engine
 
@@ -118,5 +122,5 @@ Gewünscht ist ausdrücklich eine einfache Kopie, kein NAS-Rezept und keine ZIP-
 ## Hinweise zur Umgebung
 
 - Windows, PowerShell 5: `Set-Content -Encoding utf8NoBOM` gibt es nicht, und `Set-Content -Encoding UTF8` schreibt ein BOM. Für Dateien ohne BOM `[IO.File]::WriteAllText` nutzen; JS/MJS-Dateien dürfen kein BOM haben.
-- Zum Testen ohne µGulp genügt ein statischer Server im Repository-Stamm, z. B. `python -m http.server 8799`, dann `http://localhost:8799/bangle/preview/flyclock.html`.
+- Zum Testen ohne µGulp genügt ein statischer Server im Repository-Stamm, z. B. `python -m http.server 8799`, dann `http://localhost:8799/bangle/preview/fliesclock.html`.
 - Logik der Bangle-Uhren lässt sich in Node mit `vm` und nachgebildeten `g`/`Bangle`/Timern prüfen. Weil der Code in einem Block steht, Testzugriffe innerhalb des Blocks einhängen.

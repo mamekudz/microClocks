@@ -7,7 +7,7 @@ import { listClockScripts } from '../bangle/tools/program.mjs';
  * (shared/faces), `pc`: Zifferblatt von run.ps1. Fehlt eine Plattform, gibt es die Uhr dort nicht.
  */
 const CATALOG = [
-	{ value: 'flies', label: 'Fliegen', bangle: 'bangle/FlyClock.js', web: 'flies', pc: 'flies' },
+	{ value: 'flies', label: 'FliesClock', bangle: 'bangle/FliesClock.js', web: 'flies', pc: 'flies' },
 	{ value: 'marbles', label: 'Murmeln', bangle: 'bangle/MarbleClock.js', web: 'marbles', pc: 'marbles' },
 	{ value: 'oxyd', label: 'Oxyd', bangle: 'bangle/OxydClock.js', web: 'oxyd' },
 	{ value: 'oxyd-large', label: 'Oxyd groß', web: 'oxyd-large' },

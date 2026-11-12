@@ -28,8 +28,8 @@ namespace
 	constexpr double StageScale = 0.045;
 	constexpr int32 RoverCount = 3;
 
-	// Schräger Blick auf den Waldboden, Brennpunkt auf den Ziffern.
-	constexpr double CameraPitch = 36.0;
+	// Schräger Blick auf den Waldboden, Brennpunkt auf den Ziffern. Flacher als etwa 50° staucht die Ziffern zu stark.
+	constexpr double CameraPitch = 54.0;
 	constexpr double CameraDistance = 30.0;
 	constexpr float FocalLength = 40.0f;
 	constexpr float Aperture = 9.0f;
@@ -137,7 +137,12 @@ AFlyClock::AFlyClock()
 	Post.bOverride_FilmGrainIntensity = true;
 	Post.FilmGrainIntensity = 0.06f;
 	Post.bOverride_AutoExposureBias = true;
-	Post.AutoExposureBias = 0.3f;
+	Post.AutoExposureBias = -0.1f;
+	// Ruhigerer, etwas entsättigter Boden mit mehr Kontrast, damit die dunklen Fliegen herausstechen.
+	Post.bOverride_ColorSaturation = true;
+	Post.ColorSaturation = FVector4(0.75, 0.75, 0.75, 1.0);
+	Post.bOverride_ColorContrast = true;
+	Post.ColorContrast = FVector4(1.2, 1.2, 1.2, 1.0);
 
 	// Tiefe Nachmittagssonne von hinten rechts: Gegenlicht auf Flügeln, Schatten zur Kamera.
 	Sun = CreateDefaultSubobject<UDirectionalLightComponent>(TEXT("Sun"));
@@ -334,6 +339,24 @@ void AFlyClock::BuildForest()
 		if (Clear(P)) continue;
 		Place(TEXT("dry_branches_medium_01"), TEXT("dry_branches_medium_01_b"), P, Random.FRandRange(0.0, 360.0), Random.FRandRange(0.05, 0.1), 0.1);
 	}
+
+	// Nichts, was in die Ziffern ragt: Zweige und Steine quer durch die Fliegen machen die Uhrzeit unleserlich.
+	const TArray<FFlySlot> Slots = MakeClockSlots(8, 8);
+	FBox2D Digits(ForceInit);
+	for (const FFlySlot& Slot : Slots)
+	{
+		Digits += PanelToWorld(Slot.P);
+	}
+	Digits = Digits.ExpandBy(2.5);
+	Props.RemoveAll([&Digits](const TObjectPtr<UStaticMeshComponent>& Prop)
+	{
+		const FBox Bounds = Prop->Bounds.GetBox();
+		// Große Hintergrundstücke bleiben; ihre achsenparallele Hülle reicht oft weit über das Sichtbare hinaus.
+		if (Bounds.GetSize().GetMax() > 40.0) return false;
+		if (!Digits.Intersect(FBox2D(FVector2D(Bounds.Min.X, Bounds.Min.Y), FVector2D(Bounds.Max.X, Bounds.Max.Y)))) return false;
+		Prop->DestroyComponent();
+		return true;
+	});
 }
 
 void AFlyClock::BuildTray()
@@ -490,7 +513,8 @@ void AFlyClock::LoadLook()
 	Look.Abdomen = Tint(Solid, this, FLinearColor(0.06f, 0.055f, 0.045f), 0.35f);
 	Look.Eye = Tint(Solid, this, FLinearColor(0.32f, 0.05f, 0.025f), 0.2f);
 	Look.Leg = Tint(Solid, this, FLinearColor(0.02f, 0.02f, 0.02f), 0.6f);
-	Look.Wing = Tint(Wing, this, FLinearColor(0.7f, 0.74f, 0.8f), 0.25f, 0.22f);
+	// Dunkle, fast durchsichtige Flügel: helle Flügel ließen die Fliegen auf dem hellen Boden grau wirken.
+	Look.Wing = Tint(Wing, this, FLinearColor(0.3f, 0.32f, 0.36f), 0.25f, 0.14f);
 
 	UStaticMesh* ScanMesh = nullptr;
 	IAssetRegistry& Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();

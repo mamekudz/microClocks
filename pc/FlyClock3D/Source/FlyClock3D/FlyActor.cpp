@@ -12,6 +12,8 @@ namespace
 	constexpr double LegLength = 7.5;
 	constexpr double WingLength = 9.0;
 	constexpr double ScanLength = 16.0;
+	// Etwas größer als das Panel-Raster (18 Einheiten) vorsieht, damit die Ziffern geschlossener wirken.
+	constexpr double FlyScale = 1.2;
 }
 
 AFlyActor::AFlyActor()
@@ -130,7 +132,8 @@ void AFlyActor::ApplyPose(const FFly& Fly, float DeltaSeconds)
 
 	// Panel x nach rechts wird Welt +Y, Panel y nach unten wird Welt −X. Die Kamera schaut von oben.
 	const bool bAir = Fly.Mode == EFlyMode::Fly || Fly.Z > 0.5;
-	SetActorRelativeLocation(FVector(FlyPanel::H / 2.0 - Fly.P.Y, Fly.P.X - FlyPanel::W / 2.0, Fly.Z + RideHeight));
+	SetActorRelativeScale3D(FVector(FlyScale));
+	SetActorRelativeLocation(FVector(FlyPanel::H / 2.0 - Fly.P.Y, Fly.P.X - FlyPanel::W / 2.0, Fly.Z + RideHeight * FlyScale));
 	const double Yaw = FMath::RadiansToDegrees(Fly.Yaw) + 90.0;
 	const double Pitch = bAir ? FMath::Clamp(Fly.VZ * 5.0, -25.0, 25.0) : 0.0;
 	const double Roll = FMath::RadiansToDegrees(Fly.Bank) * 0.6;

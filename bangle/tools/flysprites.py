@@ -1,7 +1,7 @@
-"""Erzeugt die Fliegen-Sprites für bangle/FlyClock.js aus shared/assets/fly/flyex.png.
+"""Erzeugt die Fliegen-Sprites für bangle/FliesClock.js aus shared/assets/fly/flyex.png.
 
 Aufruf: python bangle/tools/flysprites.py
-Ersetzt in FlyClock.js den Block zwischen "// <sprites>" und "// </sprites>".
+Ersetzt in FliesClock.js den Block zwischen "// <sprites>" und "// </sprites>".
 
 Im Original ist der schwarze Körper transparent; sichtbar sind der halbtransparente
 helle Rand und die weißen Flügel- und Augenpixel. Für die 8 Farben der Bangle.js 2:
@@ -17,7 +17,7 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 SHEET = os.path.join(REPO, "shared", "assets", "fly", "flyex.png")
-CLOCK = os.path.join(REPO, "bangle", "FlyClock.js")
+CLOCK = os.path.join(REPO, "bangle", "FliesClock.js")
 
 FRAME = 30
 SIZE = 22
@@ -109,7 +109,7 @@ def main():
         source = reader.read()
     updated, count = re.subn(r"// <sprites>.*?// </sprites>", lambda _: block, source, flags=re.S)
     if count != 1:
-        raise SystemExit("Markierung // <sprites> ... // </sprites> fehlt in FlyClock.js")
+        raise SystemExit("Markierung // <sprites> ... // </sprites> fehlt in FliesClock.js")
     with open(CLOCK, "w", encoding="utf-8", newline="\n") as writer:
         writer.write(updated)
     print("fertig:", CLOCK)

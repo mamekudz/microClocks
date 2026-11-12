@@ -2,7 +2,7 @@
 	"FileVersion": 3,
 	"EngineAssociation": "5.4",
 	"Category": "",
-	"Description": "3D-Studie der Fliegenuhr",
+	"Description": "3D-Studie der FliesClock",
 	"Modules": [
 		{
 			"Name": "FlyClock3D",

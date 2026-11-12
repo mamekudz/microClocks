@@ -1,4 +1,4 @@
-// Fliegenuhr: 3×5-Ziffern mit ausgedünnten Zellen, eine Fliege pro Zelle. Stunden oben, Minuten unten.
+// FliesClock: 3×5-Ziffern mit ausgedünnten Zellen, eine Fliege pro Zelle. Stunden oben, Minuten unten.
 // Die Fliegen landen neben ihrer Zelle und laufen das letzte Stück zu Fuß.
 // Sitzende Fliegen bewegen sich nicht. Ohne fliegende oder laufende Fliege läuft kein Intervall,
 // die Uhr schläft bis zum nächsten Minutenwechsel, einer Berührung oder heftigem Schütteln.

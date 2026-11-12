@@ -137,21 +137,21 @@ programBangle.µAgent = {
 };
 
 export async function previewBangle() {
-	await tasks.servePage(root, 'bangle/preview/flyclock.html');
+	await tasks.servePage(root, 'bangle/preview/fliesclock.html');
 }
 
-previewBangle.µDisplayName = "Preview Bangle fly clock<context=\"µDisplayName\"/>".i18xRegister();
-previewBangle.µDescription = "Run bangle/FlyClock.js in the browser on a 176 × 176 canvas that mimics the Bangle.js 2 display.<context=\"µDescription\"/>".i18xRegister();
+previewBangle.µDisplayName = "Preview Bangle FliesClock<context=\"µDisplayName\"/>".i18xRegister();
+previewBangle.µDescription = "Run bangle/FliesClock.js in the browser on a 176 × 176 canvas that mimics the Bangle.js 2 display.<context=\"µDescription\"/>".i18xRegister();
 previewBangle.µGroup = "Previews<context=\"µGroup\"/>".i18xRegister();
 previewBangle.µVisible = () => clock().value === 'flies';
 previewBangle.µOrder = 520;
 previewBangle.µAgent = {
 	"schemaVersion": 1,
-	"purpose": "Run a local no-cache HTTP server for the repository and open bangle/preview/flyclock.html in Cursor or the default browser.",
+	"purpose": "Run a local no-cache HTTP server for the repository and open bangle/preview/fliesclock.html in Cursor or the default browser.",
 	"prerequisites": ["Port 8765 or any free local port."],
 	"sideEffects": ["Listens on 127.0.0.1 until the task is cancelled; opens a browser tab. No watch access."],
 	"artifacts": [],
-	"limitations": ["Emulates only the Graphics and Bangle calls FlyClock.js uses; drawing speed and colours differ from the watch."],
+	"limitations": ["Emulates only the Graphics and Bangle calls FliesClock.js uses; drawing speed and colours differ from the watch."],
 	"repeatability": "Can be restarted at any time.",
 	"cancellation": "Cancelling stops the server; the browser tab stays open without updates."
 };
