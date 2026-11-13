@@ -98,7 +98,7 @@ static void drawClock(const tm &t) {
 void setup() {
 	Serial.begin(115200);
 
-	if (!gfx->begin()) Serial.println("CO5300: begin fehlgeschlagen");
+	if (!gfx->begin()) Serial.println("CO5300: begin failed");
 	gfx->fillScreen(RGB565_BLACK);
 	gfx->setBrightness(kBrightness);
 
@@ -109,13 +109,13 @@ void setup() {
 	if (g_rtcPresent && !valid) {
 		t = buildTime();
 		rtcWrite(t);
-		Serial.println("PCF85063: auf Build-Zeit gestellt");
+		Serial.println("PCF85063: set to build time");
 	}
 	if (!g_rtcPresent) {
 		tm start = buildTime();
 		g_fallbackBase = mktime(&start);
 		g_fallbackMillis = millis();
-		Serial.println("PCF85063: nicht gefunden, Zeit läuft ab Build-Zeit");
+		Serial.println("PCF85063: not found, time runs from build time");
 	}
 }
 

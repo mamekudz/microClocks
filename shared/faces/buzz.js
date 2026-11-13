@@ -23,7 +23,7 @@ export function createBuzz() {
 			fetch(wavUrl, { cache: "reload" }),
 			fetch(jsonUrl, { cache: "reload" }).then((response) => response.json())
 		]);
-		if (!wavResponse.ok) throw new Error(`Summton fehlt (${wavResponse.status})`);
+		if (!wavResponse.ok) throw new Error(`Buzz sound missing (${wavResponse.status})`);
 		const decoded = await audio.decodeAudioData(await wavResponse.arrayBuffer());
 		const loop = meta.sounds.fly1;
 		buffer = decoded;

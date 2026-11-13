@@ -5,8 +5,16 @@ import { loadFloors } from "../../shared/faces/floors.js";
 import { PANEL_H, PANEL_W } from "../../shared/faces/glyphs.js";
 import { createMarbles } from "../../shared/faces/marbles.js";
 import { loadOxydPainter } from "../../shared/faces/oxyd.js";
+import { loadI18x, translateDocument } from "../../shared/i18x.js";
 
 const ROOT = "../../shared";
+const HINTS = {
+	flies: "Finger on the glass: not every fly dodges at once. They come back by detours. The buzzing starts as soon as a fly notices the finger.<context=\"sim hint\"/>",
+	marbles: "Dragging tilts the glass. A quick flick shakes the marbles. Whatever the clock does not need rolls out.<context=\"sim hint\"/>",
+	oxyd: "Oxyd marbles: the scratches sit on the glass ball and roll with it. Dragging tilts, a flick shakes.<context=\"sim hint\"/>",
+	"oxyd-large": "Large Oxyd marbles: hours on top, minutes below. The scratches roll with them.<context=\"sim hint\"/>",
+	"oxyd-floor": "Large Oxyd marbles on an Oxyd floor, with ball shadows. Impacts sound according to their force. The floor button or B switches the surface.<context=\"sim hint\"/>"
+};
 
 const canvas = document.getElementById("glass");
 const context = canvas.getContext("2d");
@@ -57,17 +65,13 @@ function setFace(next) {
 	marbles.setStyle(face === "flies" || face === "marbles" ? "plain" : face);
 	floorButton.hidden = face !== "oxyd-floor";
 	marbles.setHitListener(face === "oxyd-floor" ? clack.hit : null);
-	if (floors) floorButton.textContent = `Boden: ${floors.name}`;
-	hint.textContent = face === "flies"
-		? "Finger auf das Glas: nicht jede Fliege weicht sofort aus. Zurück geht es über Umwege. Das Summen setzt ein, sobald eine Fliege den Finger bemerkt."
-		: face === "oxyd"
-			? "Oxyd-Murmeln: die Kratzer liegen auf der Glaskugel und rollen mit. Ziehen kippt, ein Schnipser schüttelt."
-			: face === "oxyd-large"
-				? "Große Oxyd-Murmeln: Stunden oben, Minuten unten. Die Kratzer rollen mit."
-				: face === "oxyd-floor"
-					? "Große Oxyd-Murmeln auf Oxyd-Boden, mit Kugelschatten. Stöße klingen je nach Wucht. Der Boden-Knopf oder B wechselt die Fläche."
-					: "Ziehen kippt das Glas. Ein schneller Schnipser schüttelt die Murmeln. Was die Uhr nicht braucht, rollt hinaus.";
+	showFloor();
+	hint.textContent = HINTS[face].i18xTrans();
 	if (face !== "flies") buzz.setFlying(0);
+}
+
+function showFloor() {
+	if (floors) floorButton.textContent = "Floor: <floor/><context=\"sim\"/>".i18xTrans({ floor: floors.name.i18xTrans() });
 }
 
 async function unlockAudio() {
@@ -78,11 +82,13 @@ function setMuted(value) {
 	muted = value;
 	buzz.setMuted(muted);
 	clack.setMuted(muted);
-	soundButton.textContent = muted ? "Ton ist aus" : "Ton ist an";
+	soundButton.textContent = muted ? "Sound is off<context=\"sim\"/>".i18xTrans() : "Sound is on<context=\"sim\"/>".i18xTrans();
 	soundButton.classList.toggle("is-on", !muted);
 }
 
 async function boot() {
+	await loadI18x("../../i18x/web");
+	translateDocument();
 	const image = new Image();
 	image.src = `${ROOT}/assets/fly/flyex.png`;
 	await image.decode();
@@ -92,7 +98,7 @@ async function boot() {
 	});
 	loadFloors(ratio, `${ROOT}/assets/oxyd/floors`).then((loaded) => {
 		floors = loaded;
-		floorButton.textContent = `Boden: ${floors.name}`;
+		showFloor();
 	}).catch((error) => {
 		console.error(error);
 	});
@@ -106,7 +112,7 @@ async function boot() {
 		await buzz.load(`${ROOT}/assets/fly/fly.sounds.wav`, `${ROOT}/assets/fly/fly.sounds.json`);
 	} catch (error) {
 		console.error(error);
-		hint.textContent = "Summton konnte nicht geladen werden.";
+		hint.textContent = "The buzz sound could not be loaded.<context=\"sim\"/>".i18xTrans();
 	}
 	requestAnimationFrame(frame);
 }
@@ -220,7 +226,7 @@ for (const button of faceButtons) {
 function nextFloor() {
 	if (!floors) return;
 	floors.next();
-	floorButton.textContent = `Boden: ${floors.name}`;
+	showFloor();
 }
 
 floorButton.addEventListener("click", nextFloor);
@@ -247,5 +253,5 @@ window.addEventListener("keydown", (event) => {
 
 boot().catch((error) => {
 	console.error(error);
-	hint.textContent = "Die Fliegen-Sprites konnten nicht geladen werden.";
+	hint.textContent = "The fly sprites could not be loaded.<context=\"sim\"/>".i18xTrans();
 });

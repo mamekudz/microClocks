@@ -17,7 +17,7 @@ export function createClack() {
 
 	async function load(url) {
 		const response = await fetch(url, { cache: "reload" });
-		if (!response.ok) throw new Error(`Stoßgeräusch fehlt (${response.status})`);
+		if (!response.ok) throw new Error(`Impact sound missing (${response.status})`);
 		buffer = await audio.decodeAudioData(await response.arrayBuffer());
 	}
 

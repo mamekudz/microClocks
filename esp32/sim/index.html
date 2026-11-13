@@ -1,26 +1,26 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en-US">
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>espClock</title>
+	<title>microClocks ESP32</title>
 	<link rel="stylesheet" href="sim.css">
 </head>
 <body>
 	<main class="stage">
 		<p class="kicker">Waveshare ESP32-S3 · 410 × 502</p>
 		<div class="watch">
-			<canvas id="glass" width="410" height="502" role="application" tabindex="0" aria-label="Uhrenglas"></canvas>
+			<canvas id="glass" width="410" height="502" role="application" tabindex="0" aria-label="Watch glass" data-i18x-label="sim"></canvas>
 		</div>
 		<p id="caption" class="caption">--:--:--</p>
 		<div class="controls">
-			<button type="button" data-face="flies" class="is-on">Fliegen</button>
-			<button type="button" data-face="marbles">Murmeln</button>
+			<button type="button" data-face="flies" class="is-on" data-i18x="clock name">Flies</button>
+			<button type="button" data-face="marbles" data-i18x="clock name">Marbles</button>
 			<button type="button" data-face="oxyd">Oxyd</button>
-			<button type="button" data-face="oxyd-large">Oxyd groß</button>
-			<button type="button" data-face="oxyd-floor">Oxyd Boden</button>
-			<button type="button" id="floor" hidden>Boden</button>
-			<button type="button" id="sound" class="is-on">Ton ist an</button>
+			<button type="button" data-face="oxyd-large" data-i18x="clock name">Oxyd large</button>
+			<button type="button" data-face="oxyd-floor" data-i18x="clock name">Oxyd floor</button>
+			<button type="button" id="floor" hidden>Floor</button>
+			<button type="button" id="sound" class="is-on">Sound is on</button>
 		</div>
 		<p id="hint" class="hint"></p>
 	</main>

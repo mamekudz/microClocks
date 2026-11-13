@@ -6,11 +6,11 @@ const ORDER = [
 	[128, 128], [192, 0], [192, 64], [192, 128], [0, 192], [64, 192], [128, 192], [192, 192]
 ];
 
-// Wie die Oxyd-Modelle ihre Kachel wählen: zufällig oder nach Feldposition.
+// Wie die Oxyd-Modelle ihre Kachel wählen: zufällig oder nach Feldposition. `name` ist ein i18x-Quelltext.
 const FLOORS = [
-	{ id: "slate", name: "Schiefer", file: "slate.png", pick: () => Math.floor(Math.random() * 16) },
-	{ id: "beech", name: "Buche", file: "beech.png", pick: (col, row) => (col % 4) + (row % 4) * 4 },
-	{ id: "planks", name: "Dielen", file: "planks.png", pick: () => Math.floor(Math.random() * 8) }
+	{ id: "slate", name: "Slate<context=\"floor\"/>", file: "slate.png", pick: () => Math.floor(Math.random() * 16) },
+	{ id: "beech", name: "Beech<context=\"floor\"/>", file: "beech.png", pick: (col, row) => (col % 4) + (row % 4) * 4 },
+	{ id: "planks", name: "Planks<context=\"floor\"/>", file: "planks.png", pick: () => Math.floor(Math.random() * 8) }
 ];
 
 const TILE = 48;

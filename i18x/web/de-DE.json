@@ -1,0 +1,21 @@
+{
+  "Watch glass<context=\"sim\"/>": "Uhrenglas",
+  "Flies<context=\"clock name\"/>": "Fliegen",
+  "Marbles<context=\"clock name\"/>": "Murmeln",
+  "Oxyd large<context=\"clock name\"/>": "Oxyd groß",
+  "Oxyd floor<context=\"clock name\"/>": "Oxyd Boden",
+  "Floor: <floor/><context=\"sim\"/>": "Boden: <floor/>",
+  "Slate<context=\"floor\"/>": "Schiefer",
+  "Beech<context=\"floor\"/>": "Buche",
+  "Planks<context=\"floor\"/>": "Dielen",
+  "Sound is on<context=\"sim\"/>": "Ton ist an",
+  "Sound is off<context=\"sim\"/>": "Ton ist aus",
+  "The buzz sound could not be loaded.<context=\"sim\"/>": "Summton konnte nicht geladen werden.",
+  "The fly sprites could not be loaded.<context=\"sim\"/>": "Die Fliegen-Sprites konnten nicht geladen werden.",
+  "Finger on the glass: not every fly dodges at once. They come back by detours. The buzzing starts as soon as a fly notices the finger.<context=\"sim hint\"/>": "Finger auf das Glas: nicht jede Fliege weicht sofort aus. Zurück geht es über Umwege. Das Summen setzt ein, sobald eine Fliege den Finger bemerkt.",
+  "Dragging tilts the glass. A quick flick shakes the marbles. Whatever the clock does not need rolls out.<context=\"sim hint\"/>": "Ziehen kippt das Glas. Ein schneller Schnipser schüttelt die Murmeln. Was die Uhr nicht braucht, rollt hinaus.",
+  "Oxyd marbles: the scratches sit on the glass ball and roll with it. Dragging tilts, a flick shakes.<context=\"sim hint\"/>": "Oxyd-Murmeln: die Kratzer liegen auf der Glaskugel und rollen mit. Ziehen kippt, ein Schnipser schüttelt.",
+  "Large Oxyd marbles: hours on top, minutes below. The scratches roll with them.<context=\"sim hint\"/>": "Große Oxyd-Murmeln: Stunden oben, Minuten unten. Die Kratzer rollen mit.",
+  "Large Oxyd marbles on an Oxyd floor, with ball shadows. Impacts sound according to their force. The floor button or B switches the surface.<context=\"sim hint\"/>": "Große Oxyd-Murmeln auf Oxyd-Boden, mit Kugelschatten. Stöße klingen je nach Wucht. Der Boden-Knopf oder B wechselt die Fläche.",
+  "Bangle.js 2 · 176 × 176 · 3-bit colours · click startles the flies · S shakes the watch<context=\"bangle preview\"/>": "Bangle.js 2 · 176 × 176 · 3-Bit-Farben · Klick scheucht die Fliegen auf · S schüttelt die Uhr"
+}
