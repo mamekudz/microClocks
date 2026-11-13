@@ -206,7 +206,9 @@ Gewünscht ist ausdrücklich eine einfache Kopie, kein NAS-Rezept und keine ZIP-
 
 - Branch `main`, Autor Meinolf Amekudzi. Git LFS für `*.uasset`, `*.umap`, `*.psd`, `*.fbx`, `*.glb`, `*.blend` (`.gitattributes`).
 - Commits pro Teilprojekt mit Präfix (z. B. `Bangle: …`), passend zu `commitProject`.
-- Remote `origin`: https://github.com/mamekudz/microClocks (öffentlich). Lokale µGulp-Zustände (`native-device.json`, `parameters.json`, `project-controls.json`) und Gulpfile-Sicherungen `.microgulp/gulpfile.before-*.mjs` sind ignoriert.
+- Remote `origin`: https://github.com/mamekudz/microClocks (öffentlich). Lokale µGulp-Zustände (`native-device.json`, `parameters.json`, `project-controls.json`) und Gulpfile-Sicherungen `.microgulp/gulpfile.before-*.mjs` sind ignoriert. Nicht mit `git add -A -- .microgulp` stagen: Das nahm die mit `git rm --cached` entfernten Dateien wieder auf.
+- GitHub Pages aus `main`, Stammordner (https://mamekudz.github.io/microClocks/): `index.html` (deutsch) bettet `esp32/sim/?face=…` und `bangle/preview/fliesclock.html?script=…` ein; die übrigen Bangle-Uhren öffnen im Espruino-Emulator über `https://www.espruino.com/ide/emulator.html?codeurl=<raw.githubusercontent-URL>&upload` (dort einmal „Bangle.js 2“ wählen; eine Vorwahl per URL gibt es nicht). `.nojekyll` muss bleiben. Pages liefert keine LFS-Dateien aus, die Seite darf also nur Nicht-LFS-Dateien nutzen. Neue Uhren oder Zifferblätter auch in `index.html` eintragen.
+- Releases: Programm-Wallpapers sind nicht im Workshop erlaubt, darum ZIPs als Release-Assets (`microClocks-ue-flies.zip`, `microClocks-ue-oxyd.zip` aus `dist/wallpaper-ue/<id>`, `microClocks-web.zip` aus `dist/wallpaper`), gebaut mit „Wallpaper bauen“ ohne `deploy`. Titel und Beschreibung in `project.json` stehen in der Sprache des bauenden Rechners.
 - Videos für `dev/media` mit ffmpeg aus `pip install --user imageio-ffmpeg` verkleinern: `-c:v libx264 -preset slower -crf 24 -pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 128k` (EffectDraft-Export 54 MB → 3,2 MB ohne sichtbaren Verlust; H.265 mit CRF 27 wäre 2 MB, spielt aber nicht in jedem Browser).
 
 ## Hinweise zur Umgebung

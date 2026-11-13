@@ -8,6 +8,18 @@ Uhren aus Fliegen und Oxyd-Murmeln für vier Plattformen: die Smartwatch Bangle.
 
 Video der Fliegenuhr als Wallpaper: [dev/media/FliesClockWallpaper.mp4](dev/media/FliesClockWallpaper.mp4)
 
+**Ausprobieren im Browser:** [mamekudz.github.io/microClocks](https://mamekudz.github.io/microClocks/) zeigt den ESP32-Simulator mit allen Zifferblättern, die Bangle-Vorschau der FliesClock und Links in den Espruino-Emulator für die übrigen Bangle-Uhren.
+
+## Wallpapers herunterladen
+
+Der Steam Workshop nimmt Programm-Wallpapers nicht an. Die fertigen Wallpapers gibt es deshalb unter [Releases](https://github.com/mamekudz/microClocks/releases):
+
+- `microClocks-ue-flies.zip`: Fliegen 3D (Unreal Engine)
+- `microClocks-ue-oxyd.zip`: Oxyd 3D mit Oxyd-Steinen und Glasmurmeln (Unreal Engine)
+- `microClocks-web.zip`: Web-Wallpaper mit allen Zifferblättern des Simulators
+
+Installation: Die ZIP-Datei nach `steamapps/common/wallpaper_engine/projects/myprojects` entpacken, sodass dort ein Ordner wie `microClocks-ue-flies` entsteht. Dann Wallpaper Engine ganz beenden (Taskleiste → Beenden) und neu starten. Die Unreal-Wallpapers sind Programm-Wallpapers: unter „Installiert“ → „Ergebnisse filtern“ den Typ „Anwendung“ einschalten.
+
 ## Uhren und Plattformen
 
 | Uhr | Bangle.js 2 | ESP32-Simulator und Web-Wallpaper | PC und Unreal-Wallpaper |
