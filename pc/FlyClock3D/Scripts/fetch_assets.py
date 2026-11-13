@@ -1,4 +1,4 @@
-"""Lädt die CC0-Assets für die Waldszene von Poly Haven nach Import/polyhaven.
+"""Lädt die CC0-Assets für die Waldszene und die Untergründe von Poly Haven nach Import/polyhaven.
 
 Aufruf: python Scripts/fetch_assets.py   (bereits vorhandene Dateien werden übersprungen)
 """
@@ -11,7 +11,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TARGET = os.path.join(os.path.dirname(HERE), "Import", "polyhaven")
 API = "https://api.polyhaven.com/files/"
 
-TEXTURES = ["forest_leaves_04", "forest_ground_04", "oak_veneer_01"]
+# Die letzten drei sind die hellen Untergründe für die Fliegen (Sand, Gras, Straße).
+TEXTURES = ["forest_leaves_04", "forest_ground_04", "oak_veneer_01", "sand_01", "leafy_grass", "asphalt_06"]
 TEXTURE_MAPS = ["Diffuse", "nor_dx", "arm"]
 MODELS = [
     "moss_01", "pine_roots", "tree_stump_01", "tree_stump_02", "rock_moss_set_01",

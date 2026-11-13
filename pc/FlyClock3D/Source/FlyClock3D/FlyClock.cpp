@@ -1,6 +1,7 @@
 ﻿#include "FlyClock.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "CanvasItem.h"
 #include "CineCameraComponent.h"
 #include "Components/AudioComponent.h"
 #include "Components/DirectionalLightComponent.h"
@@ -8,18 +9,30 @@
 #include "Components/ModelComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/Canvas.h"
+#include "Engine/Engine.h"
+#include "Engine/Font.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/Level.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/TextureCube.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "FlyActor.h"
+#include "FlyI18x.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundWave.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Widgets/SWindow.h"
+
+#if PLATFORM_WINDOWS
+#include "Windows/AllowWindowsPlatformTypes.h"
+#include <Windows.h>
+#include "Windows/HideWindowsPlatformTypes.h"
+#endif
 
 namespace
 {
@@ -38,7 +51,22 @@ namespace
 	const TCHAR* const WingPath = TEXT("/Game/FlyClock/M_Wing.M_Wing");
 	const TCHAR* const BuzzPath = TEXT("/Game/FlyClock/S_Buzz.S_Buzz");
 	const TCHAR* const ScanFolder = TEXT("/Game/FlyClock/Scan");
-	const TCHAR* const GroundPath = TEXT("/Game/Forest/M_Ground.M_Ground");
+	const TCHAR* const ScanMeshPath = TEXT("/Game/FlyClock/Scan/SM_Fly.SM_Fly");
+	// Waldboden zuerst; die hellen Untergründe legt setup_assets.py (GROUND_VARIANTS) an. Nur der Wald hat Requisiten.
+	const TCHAR* const GroundNames[] = { TEXT("forest"), TEXT("sand"), TEXT("grass"), TEXT("road") };
+	const TCHAR* const GroundPaths[] = {
+		TEXT("/Game/Forest/M_Ground.M_Ground"),
+		TEXT("/Game/Grounds/M_Ground_Sand.M_Ground_Sand"),
+		TEXT("/Game/Grounds/M_Ground_Grass.M_Ground_Grass"),
+		TEXT("/Game/Grounds/M_Ground_Road.M_Ground_Road")
+	};
+	const TCHAR* const GroundLabels[] = {
+		TEXT("Forest floor<context=\"ground\"/>"), TEXT("Sand<context=\"ground\"/>"), TEXT("Grass<context=\"ground\"/>"), TEXT("Road<context=\"ground\"/>")
+	};
+
+	// Sekunden: so lange bleibt die Knopfleiste nach der letzten Mausbewegung, so lange wirkt ein ruhender Zeiger noch.
+	constexpr double OverlayLinger = 4.0;
+	constexpr double PointerRest = 1.5;
 	const TCHAR* const SkyMaterialPath = TEXT("/Game/Forest/M_Sky.M_Sky");
 	const TCHAR* const SkyCubePath = TEXT("/Game/Forest/Sky/T_Sky.T_Sky");
 
@@ -51,6 +79,7 @@ namespace
 	constexpr double RimHeight = 1.5;
 	constexpr int32 MarbleCount = 56;
 	const TCHAR* const MarblePath = TEXT("/Game/Marbles/M_Marble.M_Marble");
+	const TCHAR* const GlassMarblePath = TEXT("/Game/Marbles/M_GlassMarble.M_GlassMarble");
 	const TCHAR* const WoodPath = TEXT("/Game/Marbles/M_Wood.M_Wood");
 	const TCHAR* const ClackPath = TEXT("/Game/Marbles/S_Clack.S_Clack");
 	// Die acht Oxyd-Glasfarben wie in sim/oxyd.js: schwarz, weiß, rot, grün, blau, gelb, magenta, cyan.
@@ -64,10 +93,23 @@ namespace
 		FLinearColor(0.25f, 0.03f, 0.22f),
 		FLinearColor(0.03f, 0.2f, 0.25f)
 	};
+	// Glastönung aus OxydVR (GlassMarble_*.mat, _ColorGlass), gleiche Reihenfolge. "Schwarz" ist dort Rauchglas.
+	const FLinearColor GlassColors[8] = {
+		FLinearColor(0.566f, 0.566f, 0.566f),
+		FLinearColor(1.0f, 1.0f, 1.0f),
+		FLinearColor(0.283f, 0.0f, 0.0f),
+		FLinearColor(0.0f, 0.282f, 0.029f),
+		FLinearColor(0.0f, 0.027f, 0.282f),
+		FLinearColor(0.276f, 0.282f, 0.0f),
+		FLinearColor(0.282f, 0.0f, 0.257f),
+		FLinearColor(0.0f, 0.278f, 0.282f)
+	};
 
 	int32 PeakCount()
 	{
-		return MakeClockSlots(8, 8).Num();
+		int32 Peak = 0;
+		for (int32 Size = 0; Size < DigitSizeCount(); Size++) Peak = FMath::Max(Peak, MakeClockSlots(8, 8, Size).Num());
+		return Peak;
 	}
 
 	UMaterialInstanceDynamic* Tint(UMaterialInterface* Base, UObject* Outer, const FLinearColor& Color, float Roughness, float Opacity = 1.0f)
@@ -173,11 +215,50 @@ AFlyClock::AFlyClock()
 void AFlyClock::BeginPlay()
 {
 	Super::BeginPlay();
+	FlyI18x::Load();
 	HideMapContent();
 
 	BuildForest();
 	BuildTray();
-	SetFace(FParse::Param(FCommandLine::Get(), TEXT("marbles")));
+	// Wallpaper Engine startet Programm-Wallpaper ohne Argumente. Am Programmnamen (Hardlinks microClocks-flies.exe,
+	// microClocks-oxyd.exe) erkennt die Uhr, dass sie Wallpaper ist, welche Uhren sie zeigt und wo ihre Einstellung liegt.
+	const FString Executable = FPlatformProcess::ExecutableName(true);
+	bWallpaper = Executable.StartsWith(TEXT("microClocks"), ESearchCase::IgnoreCase);
+	if (bWallpaper)
+	{
+		if (Executable.Equals(TEXT("microClocks-flies"), ESearchCase::IgnoreCase)) Faces = EFaces::Flies;
+		if (Executable.Equals(TEXT("microClocks-oxyd"), ESearchCase::IgnoreCase)) Faces = EFaces::Oxyd;
+		if (Faces != EFaces::All) SettingsSection = Executable;
+		// Der Desktop ist quer: das ganze Fenster füllen statt der Hochkant-Bühne mit Balken.
+		Camera->bConstrainAspectRatio = false;
+		UE_LOG(LogTemp, Display, TEXT("FlyClock: wallpaper mode %s"), *Executable);
+	}
+
+	Views[0] = DefaultView(false);
+	Views[1] = DefaultView(true);
+	const bool bGlassStart = FParse::Param(FCommandLine::Get(), TEXT("glass"));
+	SetFace(bGlassStart || FParse::Param(FCommandLine::Get(), TEXT("marbles")), bGlassStart);
+	FString GroundName;
+	int32 GroundStart = 0;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ground="), GroundName))
+	{
+		for (int32 i = 0; i < UE_ARRAY_COUNT(GroundNames); i++)
+		{
+			if (GroundName.Equals(GroundNames[i], ESearchCase::IgnoreCase)) GroundStart = i;
+		}
+	}
+	SetGround(GroundStart);
+	// -digits=3x5, 4x7 oder 5x7: Ziffernraster der Fliegen.
+	FString DigitsName;
+	if (FParse::Value(FCommandLine::Get(), TEXT("digits="), DigitsName))
+	{
+		for (int32 i = 0; i < DigitSizeCount(); i++)
+		{
+			if (DigitsName.Equals(DigitSizeName(i), ESearchCase::IgnoreCase)) DigitSize = i;
+		}
+	}
+	SetSoundLevel(SoundLevel);
+	if (bWallpaper) LoadSettings();
 
 	// Mit -closeup beginnt die Kamera dicht an den Ziffern.
 	if (FParse::Param(FCommandLine::Get(), TEXT("closeup"))) ViewWanted.Z = bMarbles ? 16.0 : 7.0;
@@ -188,13 +269,14 @@ void AFlyClock::BeginPlay()
 		TArray<FString> Parts;
 		View.ParseIntoArray(Parts, TEXT(","));
 		for (int32 i = 0; i < FMath::Min(3, Parts.Num()); i++) ViewWanted[i] = FCString::Atod(*Parts[i]);
-		UE_LOG(LogTemp, Display, TEXT("FlyClock: Ansicht %s"), *ViewWanted.ToString());
+		UE_LOG(LogTemp, Display, TEXT("FlyClock: view %s"), *ViewWanted.ToString());
 	}
 	ViewNow = ViewWanted;
 	ApplyView();
 
 	const int32 Pool = PeakCount() * 2;
 	Swarm.Init(Pool, RoverCount);
+	Swarm.SetDigitSize(DigitSize);
 	for (int32 i = 0; i < Pool + RoverCount; i++)
 	{
 		AFlyActor* Visual = GetWorld()->SpawnActor<AFlyActor>(FVector::ZeroVector, FRotator::ZeroRotator);
@@ -289,9 +371,9 @@ void AFlyClock::Place(const TCHAR* Folder, const TCHAR* Name, const FVector2D& A
 
 void AFlyClock::BuildForest()
 {
-	if (UMaterialInterface* Floor = LoadObject<UMaterialInterface>(nullptr, GroundPath))
+	for (const TCHAR* Path : GroundPaths)
 	{
-		Ground->SetMaterial(0, Floor);
+		GroundLooks.Add(LoadObject<UMaterialInterface>(nullptr, Path));
 	}
 	if (UMaterialInterface* SkyMaterial = LoadObject<UMaterialInterface>(nullptr, SkyMaterialPath))
 	{
@@ -341,11 +423,13 @@ void AFlyClock::BuildForest()
 	}
 
 	// Nichts, was in die Ziffern ragt: Zweige und Steine quer durch die Fliegen machen die Uhrzeit unleserlich.
-	const TArray<FFlySlot> Slots = MakeClockSlots(8, 8);
 	FBox2D Digits(ForceInit);
-	for (const FFlySlot& Slot : Slots)
+	for (int32 Size = 0; Size < DigitSizeCount(); Size++)
 	{
-		Digits += PanelToWorld(Slot.P);
+		for (const FFlySlot& Slot : MakeClockSlots(8, 8, Size))
+		{
+			Digits += PanelToWorld(Slot.P);
+		}
 	}
 	Digits = Digits.ExpandBy(2.5);
 	Props.RemoveAll([&Digits](const TObjectPtr<UStaticMeshComponent>& Prop)
@@ -393,9 +477,17 @@ void AFlyClock::BuildTray()
 	const FBox Bounds = Sphere->GetBoundingBox();
 	MarbleCenter = Bounds.GetCenter();
 	MarbleMeshRadius = Bounds.GetExtent().GetMax();
-	UE_LOG(LogTemp, Display, TEXT("FlyClock: Murmelnetz %s, Mitte %s, Radius %.1f"), *Sphere->GetName(), *MarbleCenter.ToString(), MarbleMeshRadius);
+	UE_LOG(LogTemp, Display, TEXT("FlyClock: marble mesh %s, centre %s, radius %.1f"), *Sphere->GetName(), *MarbleCenter.ToString(), MarbleMeshRadius);
 
-	UMaterialInterface* Glass = LoadObject<UMaterialInterface>(nullptr, MarblePath);
+	UMaterialInterface* Stone = LoadObject<UMaterialInterface>(nullptr, MarblePath);
+	UMaterialInterface* Glass = LoadObject<UMaterialInterface>(nullptr, GlassMarblePath);
+	auto Look = [this](UMaterialInterface* Base, const FLinearColor& Color) -> UMaterialInterface*
+	{
+		if (!Base) return nullptr;
+		UMaterialInstanceDynamic* Instance = UMaterialInstanceDynamic::Create(Base, this);
+		Instance->SetVectorParameterValue(TEXT("Color"), Color);
+		return Instance;
+	};
 	Tray.Init(MarbleCount);
 	for (const FMarble& Marble : Tray.GetMarbles())
 	{
@@ -404,12 +496,10 @@ void AFlyClock::BuildTray()
 		View->SetStaticMesh(Sphere);
 		View->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		View->SetRelativeScale3D(FVector(MarbleTray::Radius / MarbleMeshRadius));
-		if (Glass)
-		{
-			UMaterialInstanceDynamic* Look = UMaterialInstanceDynamic::Create(Glass, this);
-			Look->SetVectorParameterValue(TEXT("Color"), MarbleColors[Marble.Kind]);
-			View->SetMaterial(0, Look);
-		}
+		StoneLooks.Add(Look(Stone, MarbleColors[Marble.Kind]));
+		// Ohne eingerichtetes Glasmaterial bleiben die Glasmurmeln Oxyd-Steine.
+		GlassLooks.Add(Glass ? Look(Glass, GlassColors[Marble.Kind]) : StoneLooks.Last().Get());
+		if (StoneLooks.Last()) View->SetMaterial(0, StoneLooks.Last());
 		View->RegisterComponent();
 		MarbleViews.Add(View);
 	}
@@ -422,22 +512,72 @@ void AFlyClock::BuildTray()
 	ClackFalloff->Attenuation.FalloffDistance = 200.0f;
 }
 
-FVector AFlyClock::DefaultView() const
+FVector AFlyClock::DefaultView(bool bForMarbles)
 {
-	return bMarbles ? FVector(0.0, 46.0, 44.0) : FVector(0.0, CameraPitch, CameraDistance);
+	return bForMarbles ? FVector(0.0, 46.0, 44.0) : FVector(0.0, CameraPitch, CameraDistance);
 }
 
-void AFlyClock::SetFace(bool bMarblesNow)
+void AFlyClock::NextFace()
 {
+	// Fliegen, Oxyd-Steine, Glasmurmeln, wieder Fliegen; die Einzel-Wallpaper bleiben bei ihren Uhren.
+	switch (Faces)
+	{
+	case EFaces::Flies: break;
+	case EFaces::Oxyd: SetFace(true, !bGlass); break;
+	default: SetFace(!bMarbles || !bGlass, bMarbles && !bGlass); break;
+	}
+}
+
+void AFlyClock::SetFace(bool bMarblesNow, bool bGlassNow)
+{
+	// Jedes Zifferblatt behält seine eigene Ansicht. Vor dem ersten Aufruf ist ViewWanted noch leer.
+	if (ViewWanted.Z > 0.0) Views[bMarbles ? 1 : 0] = ViewWanted;
 	bMarbles = bMarblesNow;
+	bGlass = bMarblesNow && bGlassNow;
 	for (AFlyActor* Visual : Visuals)
 	{
 		Visual->SetActorHiddenInGame(true);
 	}
 	for (UStaticMeshComponent* Piece : TrayParts) Piece->SetVisibility(bMarbles);
-	for (UStaticMeshComponent* View : MarbleViews) View->SetVisibility(bMarbles);
+	for (int32 i = 0; i < MarbleViews.Num(); i++)
+	{
+		MarbleViews[i]->SetVisibility(bMarbles);
+		UMaterialInterface* Material = bGlass ? GlassLooks[i] : StoneLooks[i];
+		if (Material) MarbleViews[i]->SetMaterial(0, Material);
+	}
 
-	// Steinchen und Zweige, die unter oder in das Brett ragen würden, verschwinden mit ihm.
+	UpdateProps();
+
+	Stage->SetRelativeLocation(FVector(0.0, 0.0, bMarbles ? BoardTop : 0.0));
+	ViewWanted = Views[bMarbles ? 1 : 0];
+}
+
+void AFlyClock::SetGround(int32 Index)
+{
+	// Nicht eingerichtete Untergründe überspringen; der Waldboden bleibt der Rückfall.
+	for (int32 Tries = 0; Tries < GroundLooks.Num(); Tries++)
+	{
+		const int32 Candidate = (Index + Tries) % GroundLooks.Num();
+		if (GroundLooks[Candidate])
+		{
+			GroundIndex = Candidate;
+			Ground->SetMaterial(0, GroundLooks[Candidate]);
+			break;
+		}
+	}
+	UE_LOG(LogTemp, Display, TEXT("FlyClock: ground %s"), GroundNames[GroundIndex]);
+	UpdateProps();
+}
+
+void AFlyClock::SetDigitSize(int32 Size)
+{
+	DigitSize = (Size % DigitSizeCount() + DigitSizeCount()) % DigitSizeCount();
+	Swarm.SetDigitSize(DigitSize);
+}
+
+void AFlyClock::UpdateProps()
+{
+	// Waldrequisiten nur auf dem Waldboden; was unter oder in das Brett ragen würde, verschwindet mit den Murmeln.
 	const FVector2D Low = PanelToWorld(FVector2D(MarbleTray::MinX, MarbleTray::MaxY)) - FVector2D(RimWidth + 1.0);
 	const FVector2D High = PanelToWorld(FVector2D(MarbleTray::MaxX, MarbleTray::MinY)) + FVector2D(RimWidth + 1.0);
 	const FBox2D Board(Low, High);
@@ -445,11 +585,8 @@ void AFlyClock::SetFace(bool bMarblesNow)
 	{
 		const FBox Bounds = Prop->Bounds.GetBox();
 		const FBox2D Flat(FVector2D(Bounds.Min.X, Bounds.Min.Y), FVector2D(Bounds.Max.X, Bounds.Max.Y));
-		if (Board.Intersect(Flat)) Prop->SetVisibility(!bMarbles);
+		Prop->SetVisibility(GroundIndex == 0 && !(bMarbles && Board.Intersect(Flat)));
 	}
-
-	Stage->SetRelativeLocation(FVector(0.0, 0.0, bMarbles ? BoardTop : 0.0));
-	ViewWanted = DefaultView();
 }
 
 void AFlyClock::StepMarbles(const FVector2D* Finger, const FDateTime& Now, float DeltaSeconds)
@@ -516,20 +653,25 @@ void AFlyClock::LoadLook()
 	// Dunkle, fast durchsichtige Flügel: helle Flügel ließen die Fliegen auf dem hellen Boden grau wirken.
 	Look.Wing = Tint(Wing, this, FLinearColor(0.3f, 0.32f, 0.36f), 0.25f, 0.14f);
 
-	UStaticMesh* ScanMesh = nullptr;
-	IAssetRegistry& Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-	// Im Spielmodus ist die Registry beim Start noch nicht fertig durchsucht.
-	Registry.ScanPathsSynchronous({ FString(ScanFolder) }, true);
-	TArray<FAssetData> Found;
-	Registry.GetAssetsByPath(FName(ScanFolder), Found, true);
-	for (const FAssetData& Asset : Found)
+	// Das gepackte Spiel führt Netze ohne Registry-Tags nicht in der Asset-Registry, daher zuerst der feste Name.
+	UStaticMesh* ScanMesh = LoadObject<UStaticMesh>(nullptr, ScanMeshPath, nullptr, LOAD_NoWarn);
+	if (!ScanMesh)
 	{
-		if (Asset.AssetClassPath == UStaticMesh::StaticClass()->GetClassPathName())
+		IAssetRegistry& Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+		// Im Spielmodus ist die Registry beim Start noch nicht fertig durchsucht.
+		Registry.ScanPathsSynchronous({ FString(ScanFolder) }, true);
+		TArray<FAssetData> Found;
+		Registry.GetAssetsByPath(FName(ScanFolder), Found, true);
+		for (const FAssetData& Asset : Found)
 		{
-			ScanMesh = Cast<UStaticMesh>(Asset.GetAsset());
-			break;
+			if (Asset.AssetClassPath == UStaticMesh::StaticClass()->GetClassPathName())
+			{
+				ScanMesh = Cast<UStaticMesh>(Asset.GetAsset());
+				break;
+			}
 		}
 	}
+	UE_LOG(LogTemp, Display, TEXT("FlyClock: fly model %s"), ScanMesh ? *ScanMesh->GetPathName() : TEXT("from basic shapes"));
 
 	for (AFlyActor* Visual : Visuals)
 	{
@@ -538,27 +680,14 @@ void AFlyClock::LoadLook()
 	}
 }
 
-bool AFlyClock::ReadFinger(FVector2D& Out) const
+bool AFlyClock::ReadFinger(const FVector2D& Screen, FVector2D& Out) const
 {
 	APlayerController* Controller = GetWorld()->GetFirstPlayerController();
 	if (!Controller) return false;
 
 	FVector Origin;
 	FVector Direction;
-	bool bDown = false;
-	float TouchX = 0.0f;
-	float TouchY = 0.0f;
-	bool bTouch = false;
-	Controller->GetInputTouchState(ETouchIndex::Touch1, TouchX, TouchY, bTouch);
-	if (bTouch)
-	{
-		bDown = Controller->DeprojectScreenPositionToWorld(TouchX, TouchY, Origin, Direction);
-	}
-	else if (Controller->IsInputKeyDown(EKeys::LeftMouseButton))
-	{
-		bDown = Controller->DeprojectMousePositionToWorld(Origin, Direction);
-	}
-	if (!bDown || Direction.Z > -1e-4) return false;
+	if (!Controller->DeprojectScreenPositionToWorld(Screen.X, Screen.Y, Origin, Direction) || Direction.Z > -1e-4) return false;
 
 	const double Plane = Stage->GetComponentLocation().Z;
 	const FVector Hit = Origin + Direction * ((Plane - Origin.Z) / Direction.Z);
@@ -567,20 +696,374 @@ bool AFlyClock::ReadFinger(FVector2D& Out) const
 	return true;
 }
 
+// Liest den Zeiger direkt bei Windows: Als Wallpaper hat das Fenster nie den Fokus, und Wallpaper Engine
+// reicht Bewegungen nur über dem Desktop durch. Über anderen Programmen zählt der Zeiger nicht.
+bool AFlyClock::ReadCursor(FVector2D& Out, bool& bDown) const
+{
+#if PLATFORM_WINDOWS
+	UGameViewportClient* Client = GetWorld()->GetGameViewport();
+	if (!Client) return false;
+	const TSharedPtr<SWindow> Window = Client->GetWindow();
+	if (!Window.IsValid() || !Window->GetNativeWindow().IsValid()) return false;
+	const HWND Handle = static_cast<HWND>(Window->GetNativeWindow()->GetOSWindowHandle());
+
+	POINT Point;
+	if (!::GetCursorPos(&Point)) return false;
+	const HWND Under = ::WindowFromPoint(Point);
+	const HWND UnderRoot = Under ? ::GetAncestor(Under, GA_ROOT) : nullptr;
+	if (!UnderRoot) return false;
+	if (UnderRoot != ::GetAncestor(Handle, GA_ROOT))
+	{
+		// Als Wallpaper liegt das Fenster hinter den Desktopsymbolen, die zu Progman oder WorkerW gehören.
+		TCHAR Class[32] = {};
+		::GetClassNameW(UnderRoot, Class, UE_ARRAY_COUNT(Class));
+		if (FCString::Strcmp(Class, TEXT("Progman")) != 0 && FCString::Strcmp(Class, TEXT("WorkerW")) != 0) return false;
+	}
+	if (!::ScreenToClient(Handle, &Point)) return false;
+	RECT Area;
+	if (!::GetClientRect(Handle, &Area)) return false;
+	if (Point.x < 0 || Point.y < 0 || Point.x >= Area.right || Point.y >= Area.bottom) return false;
+	Out = FVector2D(Point.x, Point.y);
+	bDown = (::GetAsyncKeyState(::GetSystemMetrics(SM_SWAPBUTTON) ? VK_RBUTTON : VK_LBUTTON) & 0x8000) != 0;
+	return true;
+#else
+	return false;
+#endif
+}
+
+void AFlyClock::UpdatePointer(double Now, float DeltaSeconds)
+{
+	FVector2D At;
+	bool bDown = false;
+	const bool bHere = ReadCursor(At, bDown);
+	if (bHere && (!bCursor || FVector2D::Distance(At, Cursor) > 1.0 || bDown)) LastMove = Now;
+	const bool bWasDown = bCursorDown;
+	bCursor = bHere;
+	bCursorDown = bHere && bDown;
+	if (bHere) Cursor = At;
+
+	OverlayAlpha = FMath::FInterpConstantTo(OverlayAlpha, Now - LastMove < OverlayLinger ? 1.0f : 0.0f, DeltaSeconds, 3.0f);
+
+	if (bCursorDown && !bWasDown && OverlayAlpha > 0.5f)
+	{
+		Pressed = ButtonAt(Cursor);
+		HeldFor = 0.0f;
+		bSlotStored = false;
+	}
+	if (!Pressed) return;
+	if (bCursorDown)
+	{
+		HeldFor += DeltaSeconds;
+		HoldButton(*Pressed, DeltaSeconds);
+		return;
+	}
+	if (ButtonAt(Cursor) == Pressed && !bSlotStored) ClickButton(*Pressed);
+	Pressed.Reset();
+	SaveSettings();
+}
+
+int32 AFlyClock::SlotIndex(EButton Button)
+{
+	switch (Button)
+	{
+	case EButton::Slot1: return 0;
+	case EButton::Slot2: return 1;
+	case EButton::Slot3: return 2;
+	default: return -1;
+	}
+}
+
+FString AFlyClock::SlotKey(int32 Slot) const
+{
+	return FString::Printf(TEXT("Slot%d"), Slot + 1);
+}
+
+void AFlyClock::StoreSlot(int32 Slot)
+{
+	// Uhr, Boden, Ziffern, Ton, dann die Ansicht (Drehung, Neigung, Abstand) des gezeigten Zifferblatts.
+	const FString Value = FString::Printf(TEXT("%d,%d,%d,%d,%.3f,%.3f,%.3f"), bMarbles ? (bGlass ? 2 : 1) : 0, GroundIndex,
+		DigitSize, SoundLevel, ViewWanted.X, ViewWanted.Y, ViewWanted.Z);
+	GConfig->SetString(*SettingsSection, *SlotKey(Slot), *Value, GGameUserSettingsIni);
+	GConfig->Flush(false, GGameUserSettingsIni);
+	StoredSlot = Slot;
+	StoredUntil = GetWorld()->GetRealTimeSeconds() + 1.5;
+}
+
+void AFlyClock::RecallSlot(int32 Slot)
+{
+	FString Value;
+	if (!GConfig->GetString(*SettingsSection, *SlotKey(Slot), Value, GGameUserSettingsIni)) return;
+	TArray<FString> Parts;
+	Value.ParseIntoArray(Parts, TEXT(","));
+	if (Parts.Num() < 7) return;
+	int32 Face = FCString::Atoi(*Parts[0]);
+	if (Faces == EFaces::Flies) Face = 0;
+	if (Faces == EFaces::Oxyd) Face = FMath::Max(Face, 1);
+	SetFace(Face >= 1, Face == 2);
+	SetGround(FMath::Clamp(FCString::Atoi(*Parts[1]), 0, GroundLooks.Num() - 1));
+	SetDigitSize(FCString::Atoi(*Parts[2]));
+	SetSoundLevel(FCString::Atoi(*Parts[3]));
+	const FVector View(FCString::Atod(*Parts[4]), FCString::Atod(*Parts[5]), FCString::Atod(*Parts[6]));
+	if (View.Z > 0.0) ViewWanted = View;
+}
+
+TOptional<AFlyClock::EButton> AFlyClock::ButtonAt(const FVector2D& At) const
+{
+	for (const TPair<EButton, FBox2D>& Box : ButtonBoxes)
+	{
+		if (Box.Value.IsInside(At)) return Box.Key;
+	}
+	return {};
+}
+
+void AFlyClock::HoldButton(EButton Button, float DeltaSeconds)
+{
+	const double Turn = 50.0 * DeltaSeconds;
+	switch (Button)
+	{
+	case EButton::TurnLeft: ViewWanted.X -= Turn; break;
+	case EButton::TurnRight: ViewWanted.X += Turn; break;
+	case EButton::Flatter: ViewWanted.Y -= Turn * 0.6; break;
+	case EButton::Steeper: ViewWanted.Y += Turn * 0.6; break;
+	case EButton::Closer: ViewWanted.Z *= FMath::Pow(0.6, DeltaSeconds); break;
+	case EButton::Farther: ViewWanted.Z /= FMath::Pow(0.6, DeltaSeconds); break;
+	default:
+		if (SlotIndex(Button) >= 0 && !bSlotStored && HeldFor >= 1.0f)
+		{
+			StoreSlot(SlotIndex(Button));
+			bSlotStored = true;
+		}
+		break;
+	}
+}
+
+void AFlyClock::ClickButton(EButton Button)
+{
+	switch (Button)
+	{
+	case EButton::Face: NextFace(); break;
+	case EButton::Ground: SetGround(GroundIndex + 1); break;
+	case EButton::Digits: SetDigitSize(DigitSize + 1); break;
+	case EButton::Reset: ViewWanted = DefaultView(bMarbles); break;
+	case EButton::Sound: SetSoundLevel((SoundLevel + 1) % 4); break;
+	default:
+		if (SlotIndex(Button) >= 0) RecallSlot(SlotIndex(Button));
+		break;
+	}
+}
+
+void AFlyClock::SetSoundLevel(int32 Level)
+{
+	static const float Volumes[] = { 0.0f, 0.25f, 0.5f, 1.0f };
+	SoundLevel = FMath::Clamp(Level, 0, 3);
+	bMuted = SoundLevel == 0;
+	FApp::SetVolumeMultiplier(Volumes[SoundLevel]);
+}
+
+FString AFlyClock::ButtonLabel(EButton Button) const
+{
+	switch (Button)
+	{
+	case EButton::Face:
+		return FlyI18x::Trans(bMarbles ? (bGlass ? TEXT("Clock: glass marbles<context=\"button bar\"/>") : TEXT("Clock: Oxyd stones<context=\"button bar\"/>")) : TEXT("Clock: flies<context=\"button bar\"/>"));
+	case EButton::Ground:
+		return FlyI18x::Trans(TEXT("Ground: <ground/><context=\"button bar\"/>"), { { TEXT("ground"), FlyI18x::Trans(GroundLabels[GroundIndex]) } });
+	case EButton::Digits:
+		return FlyI18x::Trans(TEXT("Digits: <size/><context=\"button bar\"/>"), { { TEXT("size"), FString(DigitSizeName(DigitSize)).Replace(TEXT("x"), TEXT("×")) } });
+	case EButton::TurnLeft: return FlyI18x::Trans(TEXT("< Turn<context=\"button bar\"/>"));
+	case EButton::TurnRight: return FlyI18x::Trans(TEXT("Turn ><context=\"button bar\"/>"));
+	case EButton::Flatter: return FlyI18x::Trans(TEXT("Flatter<context=\"button bar\"/>"));
+	case EButton::Steeper: return FlyI18x::Trans(TEXT("Steeper<context=\"button bar\"/>"));
+	case EButton::Closer: return FlyI18x::Trans(TEXT("Closer<context=\"button bar\"/>"));
+	case EButton::Farther: return FlyI18x::Trans(TEXT("Farther<context=\"button bar\"/>"));
+	case EButton::Reset: return FlyI18x::Trans(TEXT("Default view<context=\"button bar\"/>"));
+	case EButton::Sound:
+	{
+		static const TCHAR* const Levels[] = {
+			TEXT("Sound: off<context=\"button bar\"/>"), TEXT("Sound: quiet<context=\"button bar\"/>"),
+			TEXT("Sound: medium<context=\"button bar\"/>"), TEXT("Sound: loud<context=\"button bar\"/>")
+		};
+		return FlyI18x::Trans(Levels[SoundLevel]);
+	}
+	default:
+	{
+		const int32 Slot = SlotIndex(Button);
+		if (Slot < 0) break;
+		if (Slot == StoredSlot && GetWorld()->GetRealTimeSeconds() < StoredUntil) return FlyI18x::Trans(TEXT("Saved<context=\"button bar\"/>"));
+		if (Pressed.IsSet() && *Pressed == Button && !bSlotStored && HeldFor > 0.3f) return FlyI18x::Trans(TEXT("Saving …<context=\"button bar\"/>"));
+		FString Value;
+		const bool bFilled = GConfig->GetString(*SettingsSection, *SlotKey(Slot), Value, GGameUserSettingsIni);
+		return SlotLabel(Slot, bFilled);
+	}
+	}
+	return FString();
+}
+
+FString AFlyClock::SlotLabel(int32 Slot, bool bFilled)
+{
+	const TMap<FString, FString> Values = { { TEXT("slot"), FString::FromInt(Slot + 1) } };
+	return bFilled ? FlyI18x::Trans(TEXT("Slot <slot/><context=\"button bar\"/>"), Values) : FlyI18x::Trans(TEXT("Slot <slot/> (empty)<context=\"button bar\"/>"), Values);
+}
+
+void AFlyClock::DrawOverlay(UCanvas* Canvas)
+{
+	ButtonBoxes.Reset();
+	OverlayBox = FBox2D(ForceInit);
+	if (OverlayAlpha <= 0.01f || !Canvas || !GEngine) return;
+
+	UFont* Font = GEngine->GetMediumFont();
+	float SampleWidth = 0.0f;
+	float SampleHeight = 0.0f;
+	Canvas->TextSize(Font, TEXT("Ag"), SampleWidth, SampleHeight);
+
+	// Uhr, Boden und bei den Fliegen das Ziffernraster, dann die Ansicht, der Ton und die Speicherplätze.
+	TArray<EButton> Look = { EButton::Ground };
+	if (Faces != EFaces::Flies) Look.Insert(EButton::Face, 0);
+	if (!bMarbles) Look.Add(EButton::Digits);
+	const TArray<TArray<EButton>> Groups = {
+		Look,
+		{ EButton::TurnLeft, EButton::TurnRight, EButton::Flatter, EButton::Steeper, EButton::Closer, EButton::Farther, EButton::Reset },
+		{ EButton::Sound },
+		{ EButton::Slot1, EButton::Slot2, EButton::Slot3 }
+	};
+	struct FItem { EButton Button; FString Label; float Width; float X; };
+	TArray<FItem> Items;
+	float Unit = Canvas->ClipY / 1080.0f;
+	float TextScale = 1.0f;
+	float Total = 0.0f;
+	// Ist die Leiste breiter als das Bild, wird sie im zweiten Durchgang verkleinert.
+	for (int32 Pass = 0; Pass < 2; Pass++)
+	{
+		TextScale = SampleHeight > 0.0f ? 22.0f * Unit / SampleHeight : 1.0f;
+		const float Pad = 16.0f * Unit;
+		const float Gap = 8.0f * Unit;
+		const float GroupGap = 30.0f * Unit;
+		Items.Reset();
+		Total = 0.0f;
+		for (int32 g = 0; g < Groups.Num(); g++)
+		{
+			if (g > 0) Total += GroupGap - Gap;
+			for (EButton Button : Groups[g])
+			{
+				const FString Label = ButtonLabel(Button);
+				float Width = 0.0f;
+				float TextHeight = 0.0f;
+				// Speicherplätze wechseln die Beschriftung beim Halten; feste Breite, sonst rutscht die Leiste unter der Maus.
+				Canvas->TextSize(Font, SlotIndex(Button) >= 0 ? *SlotLabel(2, false) : *Label, Width, TextHeight, TextScale, TextScale);
+				Items.Add({ Button, Label, Width + 2.0f * Pad, Total });
+				Total += Width + 2.0f * Pad + Gap;
+			}
+		}
+		Total -= Gap;
+		const float Room = Canvas->ClipX * 0.96f - 28.0f * Unit;
+		if (Total <= Room) break;
+		Unit *= Room / Total;
+	}
+	const float Height = 46.0f * Unit;
+
+	// Über der Taskleiste, die als Wallpaper den unteren Rand verdeckt.
+	const float Left = (Canvas->ClipX - Total) / 2.0f;
+	const float Top = Canvas->ClipY - Height - 110.0f * Unit;
+	OverlayBox = FBox2D(FVector2D(Left - 14.0f * Unit, Top - 12.0f * Unit), FVector2D(Left + Total + 14.0f * Unit, Top + Height + 12.0f * Unit));
+	FCanvasTileItem Panel(OverlayBox.Min, OverlayBox.GetSize(), FLinearColor(0.0f, 0.0f, 0.0f, 0.45f * OverlayAlpha));
+	Panel.BlendMode = SE_BLEND_Translucent;
+	Canvas->DrawItem(Panel);
+
+	const TOptional<EButton> Hot = bCursor ? ButtonAt(Cursor) : TOptional<EButton>();
+	for (const FItem& Item : Items)
+	{
+		const FBox2D Box(FVector2D(Left + Item.X, Top), FVector2D(Left + Item.X + Item.Width, Top + Height));
+		ButtonBoxes.Add({ Item.Button, Box });
+		const float Fill = Pressed.IsSet() && *Pressed == Item.Button ? 0.45f : (Hot.IsSet() && *Hot == Item.Button ? 0.28f : 0.12f);
+		FCanvasTileItem Tile(Box.Min, Box.GetSize(), FLinearColor(1.0f, 1.0f, 1.0f, Fill * OverlayAlpha));
+		Tile.BlendMode = SE_BLEND_Translucent;
+		Canvas->DrawItem(Tile);
+		FCanvasTextItem Text(Box.GetCenter(), FText::FromString(Item.Label), Font, FLinearColor(1.0f, 1.0f, 1.0f, OverlayAlpha));
+		Text.Scale = FVector2D(TextScale);
+		Text.bCentreX = true;
+		Text.bCentreY = true;
+		Text.EnableShadow(FLinearColor(0.0f, 0.0f, 0.0f, 0.8f * OverlayAlpha));
+		Canvas->DrawItem(Text);
+	}
+
+	// Über einem Speicherplatz steht, wie er bedient wird.
+	if (Hot.IsSet() && SlotIndex(*Hot) >= 0)
+	{
+		FCanvasTextItem Hint(FVector2D(Canvas->ClipX / 2.0f, OverlayBox.Min.Y - 22.0f * Unit),
+			FText::FromString(FlyI18x::Trans(TEXT("Click: recall · hold 1 s: save current settings<context=\"button bar\"/>"))), Font, FLinearColor(1.0f, 1.0f, 1.0f, OverlayAlpha));
+		Hint.Scale = FVector2D(TextScale * 0.85f);
+		Hint.bCentreX = true;
+		Hint.bCentreY = true;
+		Hint.EnableShadow(FLinearColor(0.0f, 0.0f, 0.0f, 0.8f * OverlayAlpha));
+		Canvas->DrawItem(Hint);
+	}
+}
+
+void AFlyClock::LoadSettings()
+{
+	int32 Face = 0;
+	int32 SavedGround = GroundIndex;
+	GConfig->GetInt(*SettingsSection, TEXT("Face"), Face, GGameUserSettingsIni);
+	GConfig->GetInt(*SettingsSection, TEXT("Ground"), SavedGround, GGameUserSettingsIni);
+	GConfig->GetVector(*SettingsSection, TEXT("ViewFlies"), Views[0], GGameUserSettingsIni);
+	GConfig->GetVector(*SettingsSection, TEXT("ViewMarbles"), Views[1], GGameUserSettingsIni);
+	int32 SavedSound = SoundLevel;
+	bool bSavedMuted = false;
+	if (!GConfig->GetInt(*SettingsSection, TEXT("Sound"), SavedSound, GGameUserSettingsIni)
+		&& GConfig->GetBool(*SettingsSection, TEXT("Muted"), bSavedMuted, GGameUserSettingsIni) && bSavedMuted)
+	{
+		SavedSound = 0;
+	}
+	SetSoundLevel(SavedSound);
+	int32 SavedDigits = DigitSize;
+	GConfig->GetInt(*SettingsSection, TEXT("Digits"), SavedDigits, GGameUserSettingsIni);
+	DigitSize = FMath::Clamp(SavedDigits, 0, DigitSizeCount() - 1);
+	// Sonst überschriebe SetFace die geladene Ansicht mit der aktuellen.
+	ViewWanted = FVector::ZeroVector;
+	if (Faces == EFaces::Flies) Face = 0;
+	if (Faces == EFaces::Oxyd) Face = FMath::Max(Face, 1);
+	SetFace(Face >= 1, Face == 2);
+	SetGround(FMath::Clamp(SavedGround, 0, GroundLooks.Num() - 1));
+}
+
+void AFlyClock::SaveSettings()
+{
+	Views[bMarbles ? 1 : 0] = ViewWanted;
+	GConfig->SetInt(*SettingsSection, TEXT("Face"), bMarbles ? (bGlass ? 2 : 1) : 0, GGameUserSettingsIni);
+	GConfig->SetInt(*SettingsSection, TEXT("Ground"), GroundIndex, GGameUserSettingsIni);
+	GConfig->SetVector(*SettingsSection, TEXT("ViewFlies"), Views[0], GGameUserSettingsIni);
+	GConfig->SetVector(*SettingsSection, TEXT("ViewMarbles"), Views[1], GGameUserSettingsIni);
+	GConfig->SetInt(*SettingsSection, TEXT("Sound"), SoundLevel, GGameUserSettingsIni);
+	GConfig->RemoveKey(*SettingsSection, TEXT("Muted"), GGameUserSettingsIni);
+	GConfig->SetInt(*SettingsSection, TEXT("Digits"), DigitSize, GGameUserSettingsIni);
+	GConfig->Flush(false, GGameUserSettingsIni);
+}
+
 void AFlyClock::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
 	if (APlayerController* Controller = GetWorld()->GetFirstPlayerController())
 	{
-		if (Controller->WasInputKeyJustPressed(EKeys::M)) bMuted = !bMuted;
 		if (Controller->WasInputKeyJustPressed(EKeys::Escape)) Controller->ConsoleCommand(TEXT("quit"));
-		if (Controller->WasInputKeyJustPressed(EKeys::Tab)) SetFace(!bMarbles);
+		bool bChanged = false;
+		if (Controller->WasInputKeyJustPressed(EKeys::M)) { SetSoundLevel((SoundLevel + 1) % 4); bChanged = true; }
+		// Tab: Fliegen, Oxyd-Steine, Glasmurmeln, wieder Fliegen.
+		if (Controller->WasInputKeyJustPressed(EKeys::Tab)) { NextFace(); bChanged = true; }
+		if (Controller->WasInputKeyJustPressed(EKeys::G)) { SetGround(GroundIndex + 1); bChanged = true; }
+		if (Controller->WasInputKeyJustPressed(EKeys::D)) { SetDigitSize(DigitSize + 1); bChanged = true; }
+		if (bChanged) SaveSettings();
 	}
+	const double RealNow = GetWorld()->GetRealTimeSeconds();
+	UpdatePointer(RealNow, DeltaSeconds);
 	SteerView(DeltaSeconds);
 
+	// Der Zeiger scheucht Fliegen und schiebt Murmeln, solange er sich bewegt oder die linke Taste hält.
+	// Ruht er, formen sich die Ziffern wieder. Über der Knopfleiste und beim Drehen der Ansicht wirkt er nicht.
+	const bool bOverOverlay = OverlayAlpha > 0.05f && OverlayBox.bIsValid && OverlayBox.IsInside(Cursor);
+	const bool bPointing = bCursor && !Pressed && !bOverOverlay && !bOrbiting && (bCursorDown || RealNow - LastMove < PointerRest);
 	FVector2D Finger;
-	const bool bFinger = ReadFinger(Finger);
+	const bool bFinger = bPointing && ReadFinger(Cursor, Finger);
 	const FDateTime Now = FDateTime::Now();
 
 	if (bMarbles)
@@ -644,7 +1127,7 @@ void AFlyClock::SteerView(float DeltaSeconds)
 	if (Controller->IsInputKeyDown(EKeys::PageUp)) Zoom *= FMath::Pow(0.5, DeltaSeconds);
 	if (Controller->IsInputKeyDown(EKeys::PageDown)) Zoom /= FMath::Pow(0.5, DeltaSeconds);
 	ViewWanted.Z *= Zoom;
-	if (Controller->WasInputKeyJustPressed(EKeys::R)) ViewWanted = DefaultView();
+	if (Controller->WasInputKeyJustPressed(EKeys::R)) ViewWanted = DefaultView(bMarbles);
 
 	// Nicht unter den Boden und nicht so weit weg, dass die Ziffern verschwinden.
 	ViewWanted.Y = FMath::Clamp(ViewWanted.Y, 6.0, 89.0);

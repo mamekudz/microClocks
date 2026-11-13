@@ -12,6 +12,11 @@ namespace
 	constexpr double LegLength = 7.5;
 	constexpr double WingLength = 9.0;
 	constexpr double ScanLength = 16.0;
+	// Weg pro Schrittzyklus des Scans: die Fußspitze schwingt in M_FlyScan ±0,9 Netzeinheiten (LEG_REACH in
+	// setup_assets.py), bei 4,8 Einheiten pro Netzeinheit also ±4,3; aufgesetzt schiebt sie den Rumpf um das Doppelte.
+	constexpr double Stride = 17.3;
+	// Abstand der Füße von der Drehachse; beim Drehen auf der Stelle legen sie diesen Bogen zurück.
+	constexpr double FootRadius = 7.0;
 	// Etwas größer als das Panel-Raster (18 Einheiten) vorsieht, damit die Ziffern geschlossener wirken.
 	constexpr double FlyScale = 1.2;
 }
@@ -178,10 +183,46 @@ void AFlyActor::ApplyPose(const FFly& Fly, float DeltaSeconds)
 			Up = FVector(0.0, 0.0, 1.0);
 		}
 		Hinges[Side]->SetRelativeRotation(FRotationMatrix::MakeFromXZ(Dir.GetSafeNormal(), Up).Rotator());
-		Wings[Side]->SetVisibility(!bScan || bFlap);
+		Wings[Side]->SetVisibility(!bScan);
 	}
 
-	if (!bScan)
+	if (bScan)
+	{
+		// M_FlyScan bewegt Beine und Flügel über Custom Primitive Data: 0 = Schrittphase, 1 = Laufen,
+		// 2 = Flügelschlagphase, 3 = Drehen (positiv nach rechts), 4 = Flügel offen. Die Schrittphase folgt
+		// dem zurückgelegten Weg, damit die Füße beim Laufen und Drehen nicht rutschen.
+		double Moved = 0.0;
+		double Turned = 0.0;
+		if (bTracked && !bAir)
+		{
+			Moved = FVector2D::Distance(Fly.P, LastP);
+			Turned = FMath::FindDeltaAngleRadians(LastYaw, Fly.Yaw);
+			// Sprünge (Neuanordnung, Rückkehr nach dem Wegfliegen) sind kein Laufen.
+			if (Moved > 4.0) Moved = 0.0;
+		}
+		LastP = Fly.P;
+		LastYaw = Fly.Yaw;
+		bTracked = true;
+		const double Arc = FMath::Abs(Turned) * FootRadius;
+		const double Travel = Moved + Arc;
+		StepPhase = FMath::Fmod(StepPhase + Travel / Stride * 2.0 * PI, 2.0 * PI);
+		const bool bMoving = Travel > 0.005 * FMath::Max(DeltaSeconds * 60.0f, 1.0f);
+		const float WalkWanted = bMoving ? static_cast<float>(Moved / Travel) : 0.0f;
+		const float TurnWanted = bMoving ? static_cast<float>(FMath::Sign(Turned) * Arc / Travel) : 0.0f;
+		// Beim Anhalten setzen die Beine in gut 0,2 s auf.
+		WalkNow = FMath::FInterpConstantTo(WalkNow, WalkWanted, DeltaSeconds, 5.0f);
+		TurnNow = FMath::FInterpConstantTo(TurnNow, TurnWanted, DeltaSeconds, 5.0f);
+		Scan->SetCustomPrimitiveDataFloat(0, static_cast<float>(StepPhase));
+		Scan->SetCustomPrimitiveDataFloat(1, WalkNow);
+		// Echte Fliegen schlagen rund 200-mal pro Sekunde, man sieht nur ein Flirren. Ein langsamer, sichtbarer
+		// Schlag wirkt wie ein Vogel; darum springt die Phase je Bild um den goldenen Winkel, so landet jedes Bild
+		// an einer anderen Stelle des Bogens. Beim Landen legen sich die Flügel in gut 0,1 s an.
+		WingOpen = FMath::FInterpConstantTo(WingOpen, bFlap ? 1.0f : 0.0f, DeltaSeconds, 8.0f);
+		if (WingOpen > 0.0f) ScanWingPhase = FMath::Fmod(ScanWingPhase + 2.39996, 2.0 * PI);
+		Scan->SetCustomPrimitiveDataFloat(2, static_cast<float>(ScanWingPhase));
+		Scan->SetCustomPrimitiveDataFloat(3, TurnNow);
+		Scan->SetCustomPrimitiveDataFloat(4, WingOpen);	}
+	else
 	{
 		ProboscisNow += (Fly.Proboscis - ProboscisNow) * FMath::Min(1.0, DeltaSeconds * 12.0);
 		const double Length = 1.2 + 2.6 * ProboscisNow;

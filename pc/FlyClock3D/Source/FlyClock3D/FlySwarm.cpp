@@ -2,19 +2,53 @@
 
 namespace
 {
-	// 3×5 Ziffern wie in sim/glyphs.js, Index 10 ist der Doppelpunkt.
-	const TCHAR* const Digits[11][5] = {
-		{ TEXT("111"), TEXT("101"), TEXT("101"), TEXT("101"), TEXT("111") },
-		{ TEXT("010"), TEXT("110"), TEXT("010"), TEXT("010"), TEXT("111") },
-		{ TEXT("111"), TEXT("001"), TEXT("111"), TEXT("100"), TEXT("111") },
-		{ TEXT("111"), TEXT("001"), TEXT("111"), TEXT("001"), TEXT("111") },
-		{ TEXT("101"), TEXT("101"), TEXT("111"), TEXT("001"), TEXT("001") },
-		{ TEXT("111"), TEXT("100"), TEXT("111"), TEXT("001"), TEXT("111") },
-		{ TEXT("111"), TEXT("100"), TEXT("111"), TEXT("101"), TEXT("111") },
-		{ TEXT("111"), TEXT("001"), TEXT("010"), TEXT("010"), TEXT("010") },
-		{ TEXT("111"), TEXT("101"), TEXT("111"), TEXT("101"), TEXT("111") },
-		{ TEXT("111"), TEXT("101"), TEXT("111"), TEXT("001"), TEXT("111") },
-		{ TEXT("010"), TEXT("010"), TEXT("000"), TEXT("010"), TEXT("010") }
+	// Ziffernraster, Index 10 ist der Doppelpunkt. 3×5 wie in sim/glyphs.js; die größeren Raster
+	// geben den großen 3D-Fliegen mehr Zellen pro Ziffer. Breite je Zeichen = Länge der Zeilen.
+	struct FDigitFont
+	{
+		int32 Rows;
+		const TCHAR* Glyphs[11][7];
+	};
+	const FDigitFont Fonts[] = {
+		{ 5, {
+			{ TEXT("111"), TEXT("101"), TEXT("101"), TEXT("101"), TEXT("111") },
+			{ TEXT("010"), TEXT("110"), TEXT("010"), TEXT("010"), TEXT("111") },
+			{ TEXT("111"), TEXT("001"), TEXT("111"), TEXT("100"), TEXT("111") },
+			{ TEXT("111"), TEXT("001"), TEXT("111"), TEXT("001"), TEXT("111") },
+			{ TEXT("101"), TEXT("101"), TEXT("111"), TEXT("001"), TEXT("001") },
+			{ TEXT("111"), TEXT("100"), TEXT("111"), TEXT("001"), TEXT("111") },
+			{ TEXT("111"), TEXT("100"), TEXT("111"), TEXT("101"), TEXT("111") },
+			{ TEXT("111"), TEXT("001"), TEXT("010"), TEXT("010"), TEXT("010") },
+			{ TEXT("111"), TEXT("101"), TEXT("111"), TEXT("101"), TEXT("111") },
+			{ TEXT("111"), TEXT("101"), TEXT("111"), TEXT("001"), TEXT("111") },
+			{ TEXT("010"), TEXT("010"), TEXT("000"), TEXT("010"), TEXT("010") }
+		} },
+		{ 7, {
+			{ TEXT("0110"), TEXT("1001"), TEXT("1001"), TEXT("1001"), TEXT("1001"), TEXT("1001"), TEXT("0110") },
+			{ TEXT("0010"), TEXT("0110"), TEXT("0010"), TEXT("0010"), TEXT("0010"), TEXT("0010"), TEXT("0111") },
+			{ TEXT("0110"), TEXT("1001"), TEXT("0001"), TEXT("0010"), TEXT("0100"), TEXT("1000"), TEXT("1111") },
+			{ TEXT("1110"), TEXT("0001"), TEXT("0001"), TEXT("0110"), TEXT("0001"), TEXT("0001"), TEXT("1110") },
+			{ TEXT("0010"), TEXT("0110"), TEXT("1010"), TEXT("1010"), TEXT("1111"), TEXT("0010"), TEXT("0010") },
+			{ TEXT("1111"), TEXT("1000"), TEXT("1110"), TEXT("0001"), TEXT("0001"), TEXT("1001"), TEXT("0110") },
+			{ TEXT("0110"), TEXT("1000"), TEXT("1000"), TEXT("1110"), TEXT("1001"), TEXT("1001"), TEXT("0110") },
+			{ TEXT("1111"), TEXT("0001"), TEXT("0010"), TEXT("0010"), TEXT("0100"), TEXT("0100"), TEXT("0100") },
+			{ TEXT("0110"), TEXT("1001"), TEXT("1001"), TEXT("0110"), TEXT("1001"), TEXT("1001"), TEXT("0110") },
+			{ TEXT("0110"), TEXT("1001"), TEXT("1001"), TEXT("0111"), TEXT("0001"), TEXT("0001"), TEXT("0110") },
+			{ TEXT("0"), TEXT("1"), TEXT("1"), TEXT("0"), TEXT("1"), TEXT("1"), TEXT("0") }
+		} },
+		{ 7, {
+			{ TEXT("01110"), TEXT("10001"), TEXT("10001"), TEXT("10001"), TEXT("10001"), TEXT("10001"), TEXT("01110") },
+			{ TEXT("00100"), TEXT("01100"), TEXT("00100"), TEXT("00100"), TEXT("00100"), TEXT("00100"), TEXT("01110") },
+			{ TEXT("01110"), TEXT("10001"), TEXT("00001"), TEXT("00010"), TEXT("00100"), TEXT("01000"), TEXT("11111") },
+			{ TEXT("11111"), TEXT("00010"), TEXT("00100"), TEXT("00010"), TEXT("00001"), TEXT("10001"), TEXT("01110") },
+			{ TEXT("00010"), TEXT("00110"), TEXT("01010"), TEXT("10010"), TEXT("11111"), TEXT("00010"), TEXT("00010") },
+			{ TEXT("11111"), TEXT("10000"), TEXT("11110"), TEXT("00001"), TEXT("00001"), TEXT("10001"), TEXT("01110") },
+			{ TEXT("00110"), TEXT("01000"), TEXT("10000"), TEXT("11110"), TEXT("10001"), TEXT("10001"), TEXT("01110") },
+			{ TEXT("11111"), TEXT("00001"), TEXT("00010"), TEXT("00100"), TEXT("01000"), TEXT("01000"), TEXT("01000") },
+			{ TEXT("01110"), TEXT("10001"), TEXT("10001"), TEXT("01110"), TEXT("10001"), TEXT("10001"), TEXT("01110") },
+			{ TEXT("01110"), TEXT("10001"), TEXT("10001"), TEXT("01111"), TEXT("00001"), TEXT("00010"), TEXT("01100") },
+			{ TEXT("0"), TEXT("1"), TEXT("1"), TEXT("0"), TEXT("1"), TEXT("1"), TEXT("0") }
+		} }
 	};
 
 	constexpr double Pitch = 18.0;
@@ -142,19 +176,32 @@ namespace
 
 	void TurnInPlace(FFly& Fly, double Rate)
 	{
-		Fly.Yaw = WrapAngle(Fly.Yaw + WrapAngle(Fly.TargetYaw - Fly.Yaw) * Rate);
+		const double Turn = WrapAngle(Fly.TargetYaw - Fly.Yaw) * Rate;
+		Fly.Yaw = WrapAngle(Fly.Yaw + Turn);
 		Fly.Bank *= 0.8;
+		// Auf der Stelle drehen heißt trippeln, sonst schleifen die Beine über den Boden.
+		if (FMath::Abs(Turn) > 0.003)
+		{
+			Fly.Anim += 0.3;
+			Fly.bStepping = true;
+		}
 	}
 
-	void SlotsFor(const TArray<int32>& Chars, double X, double Y, double CellPitch, double CellGap, TCHAR Prefix, TArray<FFlySlot>& Out)
+	int32 GlyphWidth(const FDigitFont& Font, int32 Char)
+	{
+		return FCString::Strlen(Font.Glyphs[Char][0]);
+	}
+
+	void SlotsFor(const FDigitFont& Font, const TArray<int32>& Chars, double X, double Y, double CellPitch, double CellGap, TCHAR Prefix, TArray<FFlySlot>& Out)
 	{
 		double Cursor = X;
 		for (int32 i = 0; i < Chars.Num(); i++)
 		{
-			const TCHAR* const* Rows = Digits[Chars[i]];
-			for (int32 Row = 0; Row < 5; Row++)
+			const TCHAR* const* Rows = Font.Glyphs[Chars[i]];
+			const int32 Cols = GlyphWidth(Font, Chars[i]);
+			for (int32 Row = 0; Row < Font.Rows; Row++)
 			{
-				for (int32 Col = 0; Col < 3; Col++)
+				for (int32 Col = 0; Col < Cols; Col++)
 				{
 					if (Rows[Row][Col] != TEXT('1')) continue;
 					FFlySlot Slot;
@@ -163,18 +210,31 @@ namespace
 					Out.Add(Slot);
 				}
 			}
-			Cursor += 3.0 * CellPitch + CellGap;
+			Cursor += Cols * CellPitch + CellGap;
 		}
 	}
 }
 
-TArray<FFlySlot> MakeClockSlots(int32 Hours, int32 Minutes)
+int32 DigitSizeCount()
 {
+	return UE_ARRAY_COUNT(Fonts);
+}
+
+const TCHAR* DigitSizeName(int32 Size)
+{
+	static const TCHAR* const Names[] = { TEXT("3x5"), TEXT("4x7"), TEXT("5x7") };
+	return Names[FMath::Clamp(Size, 0, DigitSizeCount() - 1)];
+}
+
+TArray<FFlySlot> MakeClockSlots(int32 Hours, int32 Minutes, int32 Size)
+{
+	const FDigitFont& Font = Fonts[FMath::Clamp(Size, 0, DigitSizeCount() - 1)];
 	const TArray<int32> Chars = { Hours / 10, Hours % 10, 10, Minutes / 10, Minutes % 10 };
-	const double Width = Chars.Num() * 3.0 * Pitch + (Chars.Num() - 1) * Gap;
-	const double Height = 5.0 * Pitch;
+	double Width = (Chars.Num() - 1) * Gap;
+	for (int32 Char : Chars) Width += GlyphWidth(Font, Char) * Pitch;
+	const double Height = Font.Rows * Pitch;
 	TArray<FFlySlot> Slots;
-	SlotsFor(Chars, (FlyPanel::W - Width) / 2.0, (FlyPanel::H - Height) / 2.0 - 8.0, Pitch, Gap, TEXT('t'), Slots);
+	SlotsFor(Font, Chars, (FlyPanel::W - Width) / 2.0, (FlyPanel::H - Height) / 2.0 - 8.0, Pitch, Gap, TEXT('t'), Slots);
 	return Slots;
 }
 
@@ -189,8 +249,8 @@ TArray<FFlySlot> MakeStackedSlots(int32 Hours, int32 Minutes)
 	const double X = (FlyPanel::W - Width) / 2.0;
 	const double Y = (FlyPanel::H - (2.0 * RowHeight + StackRow)) / 2.0;
 	TArray<FFlySlot> Slots;
-	SlotsFor({ Hours / 10, Hours % 10 }, X, Y, StackPitch, StackGap, TEXT('h'), Slots);
-	SlotsFor({ Minutes / 10, Minutes % 10 }, X, Y + RowHeight + StackRow, StackPitch, StackGap, TEXT('m'), Slots);
+	SlotsFor(Fonts[0], { Hours / 10, Hours % 10 }, X, Y, StackPitch, StackGap, TEXT('h'), Slots);
+	SlotsFor(Fonts[0], { Minutes / 10, Minutes % 10 }, X, Y + RowHeight + StackRow, StackPitch, StackGap, TEXT('m'), Slots);
 	return Slots;
 }
 
@@ -219,7 +279,7 @@ int32 FFlySwarm::Update(const FVector2D* Finger, int32 Hours, int32 Minutes)
 	if (Key != Stamp)
 	{
 		Stamp = Key;
-		Sync(MakeClockSlots(Hours, Minutes));
+		Sync(MakeClockSlots(Hours, Minutes, Size));
 	}
 
 	int32 Flying = 0;
@@ -387,7 +447,8 @@ void FFlySwarm::StepMove(FFly& Fly)
 			Fly.bLeaving = false;
 			if (Fly.bHasGoal)
 			{
-				Fly.Land = Beside(Fly.Goal, 12.0, 22.0);
+				// Weit genug neben der Zelle, dass der Fußweg dorthin gut eine Sekunde dauert.
+				Fly.Land = Beside(Fly.Goal, 16.0, 30.0);
 				Fly.bHasLand = true;
 				Fly.Mode = EFlyMode::Fly;
 			}
@@ -414,7 +475,8 @@ void FFlySwarm::StepMove(FFly& Fly)
 	const bool bWalking = Fly.Mode == EFlyMode::Walk;
 	const bool bTouchdown = bWalking && Fly.Z > 0.5;
 	const double Cruise = (Dist > 90.0 ? 2.6 : 2.1) * Air;
-	double Speed = bWalking ? 0.72 : FMath::Min(Cruise, 0.4 + Dist * 0.07);
+	// Zu Fuß etwa eine Körperlänge pro Sekunde, damit das Krabbeln zu sehen ist.
+	double Speed = bWalking ? 0.32 : FMath::Min(Cruise, 0.4 + Dist * 0.07);
 	if (bTouchdown) Speed = 0.5;
 	const double Gain = Dist < 36.0 ? 0.5 : 0.2;
 	Fly.V += ((Delta / Dist) * Speed - Fly.V) * (bWalking ? 0.35 : Gain);
@@ -491,12 +553,12 @@ void FFlySwarm::BeginIdle(FFly& Fly)
 		Idle.Kind = EIdleKind::Stand;
 		Idle.Left = 140 + FMath::RoundToInt(Rand() * 220.0);
 	}
-	else if (Roll < 0.65)
+	else if (Roll < 0.6)
 	{
 		Idle.Kind = EIdleKind::Proboscis;
 		Idle.Left = 80 + FMath::RoundToInt(Rand() * 100.0);
 	}
-	else if (Roll < 0.85)
+	else if (Roll < 0.78)
 	{
 		Idle.Kind = EIdleKind::Turn;
 		Idle.Left = 36 + FMath::RoundToInt(Rand() * 30.0);
@@ -507,7 +569,7 @@ void FFlySwarm::BeginIdle(FFly& Fly)
 	else
 	{
 		Idle.Kind = EIdleKind::Pace;
-		Idle.Left = 14 + FMath::RoundToInt(Rand() * 10.0);
+		Idle.Left = 30 + FMath::RoundToInt(Rand() * 30.0);
 		Idle.bOut = true;
 		Idle.HomeYaw = Fly.Yaw;
 		Idle.Origin = Fly.Goal;
@@ -554,7 +616,7 @@ void FFlySwarm::StepIdle(FFly& Fly)
 		break;
 	}
 
-	constexpr double Step = 0.55;
+	constexpr double Step = 0.3;
 	const bool bAligned = FMath::Abs(WrapAngle(Fly.TargetYaw - Fly.Yaw)) < 0.3;
 	if (Idle.bOut)
 	{

@@ -3,6 +3,7 @@
 Aufruf über UnrealEditor-Cmd mit -run=pythonscript (siehe run.ps1).
 """
 
+import array
 import os
 import wave
 
@@ -11,7 +12,7 @@ import unreal
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.dirname(HERE)
 IMPORT = os.path.join(PROJECT, "Import")
-SOUNDS = os.path.normpath(os.path.join(PROJECT, "..", "..", "assets", "fly"))
+SOUNDS = os.path.normpath(os.path.join(PROJECT, "..", "..", "shared", "assets", "fly"))
 DEST = "/Game/FlyClock"
 
 # Schleife fly1 aus fly.sounds.json: Schleifenanfang und -ende in Sekunden.
@@ -73,6 +74,13 @@ def make_buzz():
         end = int(LOOP_END * rate)
         reader.setpos(start)
         frames = reader.readframes(end - start)
+    # Die Schleife ist in der Aufnahme sehr leise (Spitze 0,04); auf eine Spitze von 0,9 anheben.
+    if params.sampwidth == 2:
+        samples = array.array("h", frames)
+        peak = max(1, max(abs(value) for value in samples))
+        gain = 0.9 * 32767 / peak
+        samples = array.array("h", (max(-32768, min(32767, int(value * gain))) for value in samples))
+        frames = samples.tobytes()
     with wave.open(target, "wb") as writer:
         writer.setparams(params)
         writer.writeframes(frames)
@@ -110,8 +118,154 @@ def import_scan():
     if assets.does_directory_exist(destination):
         assets.delete_directory(destination)
     imported = import_file(entry, destination)
+    # Fester Name, weil das gepackte Spiel den Ordner nicht über die Asset-Registry durchsuchen kann.
+    for index, path in enumerate(imported):
+        if isinstance(assets.load_asset(path), unreal.StaticMesh):
+            target = f"{destination}/SM_Fly"
+            assets.rename_asset(path, target)
+            imported[index] = target
+            break
     unreal.log(f"FlyClock: Scan {os.path.basename(entry)} -> {imported}")
-    enable_nanite(imported)
+
+
+# Bewegung des Scans im Netzraum (cm, X seitlich mit X > 0 links, Y nach vorn zum Kopf, Z hoch, Füße bei 0).
+# Jedes Bein ist als Linie Ansatz–Knie–Spitze aus BT643_fly vermessen (von oben, nur X/Y); ein Punkt gehört
+# zum nächstgelegenen Bein und bewegt sich mit seinem Anteil an der Beinlänge, der Ansatz steht still.
+# Dreifuß-Gang: Bein 0, 2, 3 schwingen gegen 1, 4, 5. Nach vorn schwingende Beine heben ab, die aufgesetzten
+# schieben nach hinten. Walk läuft vorwärts; Turn > 0 dreht nach rechts, dann schreiten die linken Beine
+# vorwärts und die rechten rückwärts. LEG_REACH ist der Ausschlag der Fußspitze nach vorn und hinten.
+# Die Flügel stehen im Flug waagerecht abgespreizt (Open 0 bis 1) und zittern je Bild an eine andere Stelle
+# ihres Schlagbogens (Beat), das wirkt wie das Flirren echter Fliegenflügel.
+LEG_REACH = 0.9
+MOTION_CODE = """
+const float2 Hip[6] = { float2(-0.31, 0.39), float2(0.33, 0.48), float2(-0.34, -0.21), float2(0.35, -0.10), float2(0.35, -0.30), float2(-0.35, 0.04) };
+const float2 Knee[6] = { float2(-0.87, 0.63), float2(0.74, 0.89), float2(-0.73, -0.50), float2(0.89, -0.33), float2(0.43, -1.02), float2(-1.00, 0.13) };
+const float2 Tip[6] = { float2(-1.07, 1.67), float2(0.45, 1.94), float2(-1.37, -1.96), float2(1.60, -0.92), float2(0.58, -2.04), float2(-1.62, 0.23) };
+const float Shift[6] = { 0.0, 3.14159265, 0.0, 0.0, 3.14159265, 3.14159265 };
+float best = 1e6;
+float along = 0.0;
+float shift = 0.0;
+float side = 1.0;
+for (int i = 0; i < 6; i++)
+{
+    float2 a = Knee[i] - Hip[i];
+    float2 b = Tip[i] - Knee[i];
+    float la = length(a);
+    float lb = length(b);
+    float ta = saturate(dot(P.xy - Hip[i], a) / (la * la));
+    float tb = saturate(dot(P.xy - Knee[i], b) / (lb * lb));
+    float da = length(P.xy - Hip[i] - a * ta);
+    float db = length(P.xy - Knee[i] - b * tb);
+    float d = min(da, db);
+    if (d < best)
+    {
+        best = d;
+        along = (da < db ? ta * la : la + tb * lb) / (la + lb);
+        shift = Shift[i];
+        side = Tip[i].x > 0.0 ? 1.0 : -1.0;
+    }
+}
+float3 q = (P - float3(0.0, -0.1, 1.0)) / float3(0.5, 1.35, 0.55);
+float legs = along * saturate((0.4 - best) / 0.08) * saturate((dot(q, q) - 1.0) / 0.3) * saturate((1.0 - P.z) / 0.1);
+float phase = Phase + shift;
+float drive = Walk + Turn * side;
+float stepping = saturate(abs(Walk) + abs(Turn));
+float forward = sin(phase) * drive * REACH;
+float lift = max(cos(phase) * sign(drive), 0.0) * stepping * 0.4;
+float3 offset = float3(0.0, forward, lift) * legs;
+
+float wingSide = P.x > 0.0 ? 1.0 : -1.0;
+float2 hinge = float2(0.45 * wingSide, 0.22);
+float3 r = (P - float3(0.0, -0.2, 0.9)) / float3(0.55, 1.45, 0.6);
+float wings = saturate((P.z - 1.0) / 0.1) * saturate((0.4 - P.y) / 0.1) * saturate((dot(r, r) - 1.0) / 0.15);
+float spread = Open * (1.1 + 0.7 * sin(Beat)) * wingSide;
+float2 arm = P.xy - hinge;
+float s = sin(spread);
+float c = cos(spread);
+float2 turned = float2(arm.x * c - arm.y * s, arm.x * s + arm.y * c);
+offset += float3(turned - arm, Open * 0.35 * cos(Beat) * length(arm)) * wings;
+return offset;
+""".replace("REACH", str(LEG_REACH))
+
+
+def make_fly_scan_material():
+    """Material für den Scan: Farbtextur ohne den glTF-Metallwert 1, aufgehellt, mit krabbelnden Beinen.
+    Fliegenweise Werte über Custom Primitive Data: 0 = Schrittphase, 1 = Laufen (0 bis 1),
+    2 = Flügelschlagphase, 3 = Drehen (−1 bis 1, positiv nach rechts), 4 = Flügel offen (0 bis 1)."""
+    mesh_path = f"{DEST}/Scan/SM_Fly"
+    if not assets.does_asset_exist(mesh_path):
+        return
+    texture = next((assets.load_asset(p) for p in assets.list_assets(f"{DEST}/Scan")
+                    if isinstance(assets.load_asset(p), unreal.Texture2D)), None)
+    name = "M_FlyScan"
+    path = f"{DEST}/{name}"
+    if assets.does_asset_exist(path):
+        assets.delete_asset(path)
+    material = tools.create_asset(name, DEST, unreal.Material, unreal.MaterialFactoryNew())
+    material.set_editor_property("two_sided", True)
+    create = materials.create_material_expression
+    connect = materials.connect_material_expressions
+
+    sample = create(material, unreal.MaterialExpressionTextureSampleParameter2D, -900, -300)
+    sample.set_editor_property("parameter_name", "BaseColorTexture")
+    if texture:
+        sample.set_editor_property("texture", texture)
+    brightness = create(material, unreal.MaterialExpressionScalarParameter, -900, -100)
+    brightness.set_editor_property("parameter_name", "Brightness")
+    brightness.set_editor_property("default_value", 1.8)
+    tint = create(material, unreal.MaterialExpressionMultiply, -600, -250)
+    connect(sample, "RGB", tint, "A")
+    connect(brightness, "", tint, "B")
+    materials.connect_material_property(tint, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    for value, prop, y in ((0.0, unreal.MaterialProperty.MP_METALLIC, 0),
+                           (0.55, unreal.MaterialProperty.MP_ROUGHNESS, 100),
+                           (0.5, unreal.MaterialProperty.MP_SPECULAR, 200)):
+        node = create(material, unreal.MaterialExpressionConstant, -600, y)
+        node.set_editor_property("r", value)
+        materials.connect_material_property(node, "", prop)
+
+    world = create(material, unreal.MaterialExpressionWorldPosition, -1300, 400)
+    world.set_editor_property("world_position_shader_offset", unreal.WorldPositionIncludedOffsets.WPT_EXCLUDE_ALL_SHADER_OFFSETS)
+    local = create(material, unreal.MaterialExpressionTransformPosition, -1100, 400)
+    local.set_editor_property("transform_source_type", unreal.MaterialPositionTransformSource.TRANSFORMPOSSOURCE_WORLD)
+    local.set_editor_property("transform_type", unreal.MaterialPositionTransformSource.TRANSFORMPOSSOURCE_LOCAL)
+    connect(world, "", local, "")
+    params = []
+    for index, label in enumerate(("Phase", "Walk", "Beat", "Turn", "Open")):
+        node = create(material, unreal.MaterialExpressionScalarParameter, -1100, 550 + index * 120)
+        node.set_editor_property("parameter_name", label)
+        node.set_editor_property("use_custom_primitive_data", True)
+        node.set_editor_property("primitive_data_index", index)
+        params.append(node)
+    legs = create(material, unreal.MaterialExpressionCustom, -800, 450)
+    legs.set_editor_property("code", MOTION_CODE)
+    legs.set_editor_property("output_type", unreal.CustomMaterialOutputType.CMOT_FLOAT3)
+    legs.set_editor_property("description", "LegsAndWings")
+    inputs = []
+    for label in ("P", "Phase", "Walk", "Beat", "Turn", "Open"):
+        entry = unreal.CustomInput()
+        entry.set_editor_property("input_name", label)
+        inputs.append(entry)
+    legs.set_editor_property("inputs", inputs)
+    connect(local, "", legs, "P")
+    for param in params:
+        connect(param, "", legs, str(param.get_editor_property("parameter_name")))
+    to_world = create(material, unreal.MaterialExpressionTransform, -500, 450)
+    to_world.set_editor_property("transform_source_type", unreal.MaterialVectorCoordTransformSource.TRANSFORMSOURCE_LOCAL)
+    to_world.set_editor_property("transform_type", unreal.MaterialVectorCoordTransform.TRANSFORM_WORLD)
+    connect(legs, "", to_world, "")
+    unreal.FlyClockEditorLibrary.connect_world_position_offset(material, to_world)
+    materials.recompile_material(material)
+    assets.save_asset(path)
+
+    # Ohne Nanite: das Netz ist klein, und die Beinbewegung braucht kein Nanite-WPO.
+    mesh = assets.load_asset(mesh_path)
+    settings = mesh.get_editor_property("nanite_settings")
+    settings.set_editor_property("enabled", False)
+    mesh.set_editor_property("nanite_settings", settings)
+    mesh.set_material(0, material)
+    assets.save_asset(mesh_path)
+    unreal.log("FlyClock: Material des Scans angelegt")
 
 
 FOREST = "/Game/Forest"
@@ -217,6 +371,32 @@ def make_ground():
     unreal.log("FlyClock: Waldboden-Material angelegt")
 
 
+GROUNDS = "/Game/Grounds"
+# Helle, ruhige Untergründe, auf denen die dunklen Fliegen besser zu sehen sind als auf dem Waldboden.
+# Name des Materials, Poly-Haven-Textur, Kachelgröße in Zentimetern (Scanmaß laut Poly Haven).
+GROUND_VARIANTS = [
+    ("M_Ground_Sand", "sand_01", 150.0),
+    ("M_Ground_Grass", "leafy_grass", 200.0),
+    ("M_Ground_Road", "asphalt_06", 300.0),
+]
+
+
+def make_ground_variants():
+    for name, texture, tile in GROUND_VARIANTS:
+        if not os.path.isdir(os.path.join(POLYHAVEN, "textures", texture)):
+            unreal.log_warning(f"FlyClock: Textur {texture} fehlt, {name} übersprungen")
+            continue
+        path, material = fresh_material(name, GROUNDS)
+        layer = ground_layer(material, texture, tile, 0, TEXTURE_KINDS)
+        materials.connect_material_property(layer["color"], "RGB", unreal.MaterialProperty.MP_BASE_COLOR)
+        materials.connect_material_property(layer["normal"], "RGB", unreal.MaterialProperty.MP_NORMAL)
+        materials.connect_material_property(layer["mask"], "R", unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
+        materials.connect_material_property(layer["mask"], "G", unreal.MaterialProperty.MP_ROUGHNESS)
+        materials.recompile_material(material)
+        assets.save_asset(path)
+        unreal.log(f"FlyClock: Untergrund {name} angelegt")
+
+
 def make_sky():
     folder = os.path.join(POLYHAVEN, "hdri")
     if not os.path.isdir(folder):
@@ -246,7 +426,7 @@ def make_sky():
 
 
 MARBLES = "/Game/Marbles"
-OXYD = os.path.normpath(os.path.join(PROJECT, "..", "..", "assets", "oxyd"))
+OXYD = os.path.normpath(os.path.join(PROJECT, "..", "..", "shared", "assets", "oxyd"))
 TEXTURE_KINDS = {
     "color": unreal.MaterialSamplerType.SAMPLERTYPE_COLOR,
     "normal": unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL,
@@ -351,15 +531,91 @@ def make_marbles():
     unreal.log("FlyClock: Murmeln angelegt")
 
 
-# -run=pythonscript reicht keine Argumente durch, daher wählt FLYCLOCK_SETUP=marbles nur die Murmelteile.
-if os.environ.get("FLYCLOCK_SETUP") != "marbles":
+def make_glass_marbles():
+    """Glasmurmeln nach dem Unity-Shader "Glass Fast" aus OxydVR (GlassMarble_*.mat).
+
+    Unity mischt die verschobene Szene mit getöntem, beleuchtetem Glas. Die Deckkraft ist ein Fresnel-Verlauf
+    (1 - N·V)^0,274, in der Mitte klar, am Rand getönt; die Verschiebung kommt nur aus der Kratzer-Normal-Map
+    (Stärke 2, Kachelung 2). Hier übernimmt die Pixel-Normal-Offset-Brechung von Unreal die Verschiebung.
+    """
+    scratches = import_texture(os.path.join(OXYD, "glass_scratches_normal.png"), f"{MARBLES}/Glass", "normal")
+    path, material = fresh_material("M_GlassMarble", MARBLES)
+    material.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
+    material.set_editor_property("translucency_lighting_mode", unreal.TranslucencyLightingMode.TLM_SURFACE_PER_PIXEL_LIGHTING)
+    refraction_mode = getattr(unreal.RefractionMode, "RM_PIXEL_NORMAL_OFFSET", None)
+    if refraction_mode is not None:
+        material.set_editor_property("refraction_method", refraction_mode)
+
+    color = materials.create_material_expression(material, unreal.MaterialExpressionVectorParameter, -900, -400)
+    color.set_editor_property("parameter_name", "Color")
+    color.set_editor_property("default_value", unreal.LinearColor(0.283, 0.0, 0.0, 1.0))
+    materials.connect_material_property(color, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    glow = materials.create_material_expression(material, unreal.MaterialExpressionMultiply, -600, -250)
+    glow.set_editor_property("const_b", 0.335)
+    materials.connect_material_expressions(color, "", glow, "A")
+    materials.connect_material_property(glow, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+
+    coords = materials.create_material_expression(material, unreal.MaterialExpressionTextureCoordinate, -1300, 0)
+    coords.set_editor_property("u_tiling", 2.0)
+    coords.set_editor_property("v_tiling", 2.0)
+    sample = materials.create_material_expression(material, unreal.MaterialExpressionTextureSample, -1100, 0)
+    sample.set_editor_property("texture", scratches)
+    sample.set_editor_property("sampler_type", TEXTURE_KINDS["normal"])
+    materials.connect_material_expressions(coords, "", sample, "UVs")
+    strength = materials.create_material_expression(material, unreal.MaterialExpressionCustom, -850, 0)
+    strength.set_editor_property("output_type", unreal.CustomMaterialOutputType.CMOT_FLOAT3)
+    item = unreal.CustomInput()
+    item.set_editor_property("input_name", "N")
+    strength.set_editor_property("inputs", [item])
+    strength.set_editor_property("code", "return normalize(float3(N.xy * 2.0, N.z));")
+    materials.connect_material_expressions(sample, "RGB", strength, "N")
+    materials.connect_material_property(strength, "", unreal.MaterialProperty.MP_NORMAL)
+
+    # Fresnel nutzt die Pixelnormale samt Kratzern. Die Mindestdeckkraft hält die Farbe auf dem Brett erkennbar.
+    fresnel = materials.create_material_expression(material, unreal.MaterialExpressionFresnel, -850, 300)
+    fresnel.set_editor_property("exponent", 0.274)
+    fresnel.set_editor_property("base_reflect_fraction", 0.0)
+    floor = materials.create_material_expression(material, unreal.MaterialExpressionScalarParameter, -850, 450)
+    floor.set_editor_property("parameter_name", "MinOpacity")
+    floor.set_editor_property("default_value", 0.25)
+    opacity = materials.create_material_expression(material, unreal.MaterialExpressionMax, -600, 350)
+    materials.connect_material_expressions(fresnel, "", opacity, "A")
+    materials.connect_material_expressions(floor, "", opacity, "B")
+    materials.connect_material_property(opacity, "", unreal.MaterialProperty.MP_OPACITY)
+
+    refraction = materials.create_material_expression(material, unreal.MaterialExpressionScalarParameter, -600, 550)
+    refraction.set_editor_property("parameter_name", "Refraction")
+    refraction.set_editor_property("default_value", 1.37)
+    materials.connect_material_property(refraction, "", unreal.MaterialProperty.MP_REFRACTION)
+
+    for value, prop, y in ((0.15, unreal.MaterialProperty.MP_ROUGHNESS, 700), (0.41, unreal.MaterialProperty.MP_SPECULAR, 800)):
+        node = materials.create_material_expression(material, unreal.MaterialExpressionConstant, -450, y)
+        node.set_editor_property("r", value)
+        materials.connect_material_property(node, "", prop)
+    materials.recompile_material(material)
+    assets.save_asset(path)
+    unreal.log("FlyClock: Glasmurmeln angelegt")
+
+
+# -run=pythonscript reicht keine Argumente durch. FLYCLOCK_SETUP ist "all" oder eine Liste wie "marbles,grounds,scan,flylook,buzz".
+PARTS = set(os.environ.get("FLYCLOCK_SETUP", "all").split(","))
+if "all" in PARTS:
     make_material("M_Solid", False)
     make_material("M_Wing", True)
+if PARTS & {"all", "buzz"}:
     make_buzz()
+if PARTS & {"all", "scan"}:
     import_scan()
+if PARTS & {"all", "scan", "flylook"}:
+    make_fly_scan_material()
+if "all" in PARTS:
     import_models()
     make_ground()
     make_sky()
-make_wood()
-make_marbles()
+if PARTS & {"all", "marbles"}:
+    make_wood()
+    make_marbles()
+    make_glass_marbles()
+if PARTS & {"all", "grounds"}:
+    make_ground_variants()
 unreal.log("FlyClock: Einrichtung fertig")

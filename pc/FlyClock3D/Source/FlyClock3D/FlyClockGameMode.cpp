@@ -1,8 +1,20 @@
 #include "FlyClockGameMode.h"
 
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "FlyClock.h"
 #include "GameFramework/Pawn.h"
+
+void AFlyClockHUD::DrawHUD()
+{
+	Super::DrawHUD();
+	if (!Clock.IsValid())
+	{
+		TActorIterator<AFlyClock> It(GetWorld());
+		if (It) Clock = *It;
+	}
+	if (Clock.IsValid()) Clock->DrawOverlay(Canvas);
+}
 
 AFlyClockController::AFlyClockController()
 {
@@ -23,6 +35,7 @@ AFlyClockGameMode::AFlyClockGameMode()
 {
 	PlayerControllerClass = AFlyClockController::StaticClass();
 	DefaultPawnClass = APawn::StaticClass();
+	HUDClass = AFlyClockHUD::StaticClass();
 }
 
 void AFlyClockGameMode::StartPlay()

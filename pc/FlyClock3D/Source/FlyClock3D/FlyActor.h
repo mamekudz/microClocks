@@ -76,6 +76,15 @@ private:
 	bool bScan = false;
 	double WingPhase = 0.0;
 	double ProboscisNow = 0.0;
+	// Beinbewegung des Scans.
+	FVector2D LastP = FVector2D::ZeroVector;
+	double LastYaw = 0.0;
+	bool bTracked = false;
+	double StepPhase = 0.0;
+	float WalkNow = 0.0f;
+	float TurnNow = 0.0f;
+	double ScanWingPhase = 0.0;
+	float WingOpen = 0.0f;
 
 	UStaticMeshComponent* MakePart(FName Name, UStaticMesh* Mesh, USceneComponent* Parent, const FVector& Location, const FVector& Scale);
 };

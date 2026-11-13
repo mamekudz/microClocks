@@ -15,7 +15,10 @@ struct FFlySlot
 	FVector2D P = FVector2D::ZeroVector;
 };
 
-TArray<FFlySlot> MakeClockSlots(int32 Hours, int32 Minutes);
+// Size wählt das Ziffernraster: 0 = 3×5, 1 = 4×7, 2 = 5×7.
+TArray<FFlySlot> MakeClockSlots(int32 Hours, int32 Minutes, int32 Size = 0);
+int32 DigitSizeCount();
+const TCHAR* DigitSizeName(int32 Size);
 TArray<FFlySlot> MakeStackedSlots(int32 Hours, int32 Minutes);
 
 enum class EFlyMode : uint8
@@ -90,10 +93,13 @@ public:
 	void Init(int32 Pool, int32 Rovers);
 	int32 Update(const FVector2D* Finger, int32 Hours, int32 Minutes);
 	const TArray<FFly>& GetFlies() const { return Flies; }
+	// Neues Raster: beim nächsten Update fliegen die Fliegen in die neuen Zellen.
+	void SetDigitSize(int32 NewSize) { Size = NewSize; Stamp.Reset(); }
 
 private:
 	TArray<FFly> Flies;
 	FString Stamp;
+	int32 Size = 0;
 
 	void Sync(const TArray<FFlySlot>& Slots);
 	void Spawn(FFly& Fly, const FFlySlot& Slot);
