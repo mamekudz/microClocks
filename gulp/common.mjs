@@ -34,7 +34,7 @@ export function run(command, args, options = {}) {
 	return new Promise((resolveRun, rejectRun) => {
 		const child = spawn(command, args, { cwd: options.cwd, env: options.env ?? process.env, shell: options.shell, stdio: ['ignore', 'inherit', 'inherit'], windowsHide: true });
 		child.on('error', rejectRun);
-		child.on('close', (code) => code === 0 ? resolveRun() : rejectRun(new Error(`${command} endete mit Code ${code}.`)));
+		child.on('close', (code) => code === 0 ? resolveRun() : rejectRun(new Error(exitError(command, code))));
 	});
 }
 
@@ -47,9 +47,11 @@ export function run(command, args, options = {}) {
 export function capture(command, args, cwd) {
 	const result = spawnSync(command, args, { cwd, encoding: 'utf8', windowsHide: true });
 	if (result.error) throw result.error;
-	if (result.status !== 0) throw new Error((result.stderr || result.stdout || `${command} endete mit Code ${result.status}.`).trim());
+	if (result.status !== 0) throw new Error((result.stderr || result.stdout || exitError(command, result.status)).trim());
 	return result.stdout;
 }
+
+const exitError = (command, code) => '<command/> exited with code <code/>.<context="task error"/>'.i18xTrans({ command, code });
 
 /** PlatformIO liegt meist nicht im PATH, sondern in der eigenen Python-Umgebung. */
 export function findPio() {
@@ -86,7 +88,7 @@ export function serveStatic(root, port) {
 		}
 		if (existsSync(file) && statSync(file).isDirectory()) file = join(file, 'index.html');
 		if (!existsSync(file)) {
-			response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Nicht gefunden');
+			response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Not found');
 			return;
 		}
 		response.writeHead(200, { 'Content-Type': MIME[extname(file).toLowerCase()] ?? 'application/octet-stream', 'Cache-Control': 'no-store' });
@@ -118,7 +120,7 @@ export async function openUrl(url) {
 	const opened = await Ide.Vscode.ExecuteCommand('workbench.action.openBrowserEditor', { url, inactive: false });
 	if (opened?.ok) return;
 	// command-not-allowed: Freigabe in .vscode/settings.json (microgulp.ideCommandAllowlist) greift erst nach "Fenster neu laden".
-	Log(`Kein Tab in der IDE (${opened?.code}: ${opened?.message}), öffne den Standardbrowser.`);
+	Log('No IDE tab (<code/>: <message/>), opening the default browser.<context="task log"/>', { code: opened?.code, message: opened?.message });
 	spawn('cmd', ['/c', 'start', '', url], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
 }
 
