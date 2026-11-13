@@ -1,6 +1,6 @@
 {
-	"title": "espClock",
-	"description": "Uhr aus Fliegen oder Oxyd-Murmeln, die sich jede Minute neu zu Ziffern formieren. Die Fliegen scheuen den Mauszeiger, Murmeln lassen sich mit gedrückter Maus kippen und anschubsen.",
+	"title": "microClocks",
+	"description": "Clock made of flies or Oxyd marbles that regroup into digits every minute. The flies shy away from the mouse pointer; marbles can be tilted and nudged with the mouse button held down.",
 	"file": "index.html",
 	"type": "web",
 	"tags": ["Relaxing", "Retro"],
@@ -9,31 +9,31 @@
 		"properties": {
 			"face": {
 				"order": 100,
-				"text": "Zifferblatt",
+				"text": "Clock face",
 				"type": "combo",
 				"value": "flies",
 				"options": [
-					{ "label": "Fliegen", "value": "flies" },
-					{ "label": "Murmeln", "value": "marbles" },
+					{ "label": "FliesClock", "value": "flies" },
+					{ "label": "Marbles", "value": "marbles" },
 					{ "label": "Oxyd", "value": "oxyd" },
-					{ "label": "Oxyd groß", "value": "oxyd-large" },
-					{ "label": "Oxyd Boden", "value": "oxyd-floor" }
+					{ "label": "Oxyd large", "value": "oxyd-large" },
+					{ "label": "Oxyd floor", "value": "oxyd-floor" }
 				]
 			},
 			"floor": {
 				"order": 101,
-				"text": "Boden bei Oxyd Boden",
+				"text": "Floor for Oxyd floor",
 				"type": "combo",
 				"value": "slate",
 				"options": [
-					{ "label": "Schiefer", "value": "slate" },
-					{ "label": "Buche", "value": "beech" },
-					{ "label": "Dielen", "value": "planks" }
+					{ "label": "Slate", "value": "slate" },
+					{ "label": "Beech", "value": "beech" },
+					{ "label": "Planks", "value": "planks" }
 				]
 			},
 			"size": {
 				"order": 102,
-				"text": "Größe in Prozent",
+				"text": "Size in percent",
 				"type": "slider",
 				"value": 100,
 				"min": 50,
@@ -43,19 +43,19 @@
 			},
 			"hover": {
 				"order": 103,
-				"text": "Fliegen scheuen den Mauszeiger",
+				"text": "Flies shy away from the mouse pointer",
 				"type": "bool",
 				"value": true
 			},
 			"sound": {
 				"order": 104,
-				"text": "Ton",
+				"text": "Sound",
 				"type": "bool",
 				"value": true
 			},
 			"volume": {
 				"order": 105,
-				"text": "Lautstärke",
+				"text": "Volume",
 				"type": "slider",
 				"value": 70,
 				"min": 0,
