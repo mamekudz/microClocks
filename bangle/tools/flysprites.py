@@ -1,11 +1,14 @@
-"""Erzeugt die Fliegen-Sprites für bangle/FliesClock.js aus shared/assets/fly/flyex.png.
+"""Erzeugt die Fliegen-Sprites für bangle/FliesClock.js aus shared/assets/fly/flyex.png
+und daraus die Negativ-Uhr bangle/FliesClockNegative.js.
 
 Aufruf: python bangle/tools/flysprites.py
-Ersetzt in FliesClock.js den Block zwischen "// <sprites>" und "// </sprites>".
+Ersetzt in FliesClock.js den Block zwischen "// <sprites>" und "// </sprites>". FliesClockNegative.js
+entsteht vollständig aus FliesClock.js mit eigenen Sprites und eigenem "// <colors>"-Block; nicht von Hand bearbeiten.
 
 Im Original ist der schwarze Körper transparent; sichtbar sind der halbtransparente
 helle Rand und die weißen Flügel- und Augenpixel. Für die 8 Farben der Bangle.js 2:
 Rand blau, Flügel weiß, einzelne Pixel vorn am Kopf rot.
+Negativ auf weißem Grund: Körper schwarz, Flügel weiß, Augen rot, ohne Rand.
 """
 
 import base64
@@ -18,13 +21,30 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 SHEET = os.path.join(REPO, "shared", "assets", "fly", "flyex.png")
 CLOCK = os.path.join(REPO, "bangle", "FliesClock.js")
+NEGATIVE = os.path.join(REPO, "bangle", "FliesClockNegative.js")
 
 FRAME = 30
 SIZE = 22
 # Posen: sitzend mit eingeklappten Flügeln, drei Flügelstellungen im Flug, fünf Laufbilder.
-# Diagonale Posen liegen 10 Bilder weiter.
-POSES = [4, 1, 2, 3, 5, 6, 7, 8, 9]
-TRANSPARENT, HALO, WING, EYE = 0, 1, 2, 3
+# Diagonale Posen liegen 10 Bilder weiter. Sitzend ist Laufbild 5: Bild 4 gleicht ihm bis auf den Kopf,
+# dort aber mit ausgestrecktem Rüssel und ohne erkennbare Augen.
+POSES = [5, 1, 2, 3, 5, 6, 7, 8, 9]
+BODY, HALO, WING, EYE = "body", "halo", "wing", "eye"
+# Palettenindex je Pixelklasse, 0 ist transparent.
+NORMAL = {BODY: 0, HALO: 1, WING: 2, EYE: 3}
+INVERTED = {BODY: 1, HALO: 0, WING: 2, EYE: 3}
+
+NEGATIVE_COLORS = (
+    "// <colors> Negativ: weißer Grund, ohne Rand.\n"
+    "// Hintergrund; Palette der Sprites: transparent, Körper schwarz, Flügel weiß, Augen rot.\n"
+    "const BG = [1, 1, 1];\n"
+    "const PALETTE = new Uint16Array([0, g.toColor(0, 0, 0), g.toColor(1, 1, 1), g.toColor(1, 0, 0)]);\n"
+    "// </colors>"
+)
+NEGATIVE_HEADER = (
+    "// FliesClockNegative: FliesClock mit schwarzen Fliegen auf weißem Grund.\n"
+    "// Erzeugt von bangle/tools/flysprites.py aus FliesClock.js, nicht von Hand bearbeiten.\n"
+)
 
 
 def classify(sheet, index, front):
@@ -36,7 +56,7 @@ def classify(sheet, index, front):
             if a == 0:
                 continue
             if r < 128:
-                pixels[(x, y)] = TRANSPARENT if a == 255 else HALO
+                pixels[(x, y)] = BODY if a == 255 else HALO
             else:
                 pixels[(x, y)] = WING if a == 255 else HALO
     # Kleine weiße Flecken im vorderen Viertel sind die Augen.
@@ -73,13 +93,14 @@ def rotate(pixels, quarter):
     return out
 
 
-def pack(pixels):
+def pack(pixels, palette):
     """2 bpp, MSB zuerst, auf SIZE × SIZE um die Bildmitte beschnitten."""
     offset = (FRAME - SIZE) // 2
     bits = []
     for y in range(SIZE):
         for x in range(SIZE):
-            bits.append(pixels.get((x + offset, y + offset), TRANSPARENT))
+            kind = pixels.get((x + offset, y + offset))
+            bits.append(palette[kind] if kind else 0)
     data = bytearray()
     for i in range(0, len(bits), 4):
         chunk = bits[i:i + 4] + [0] * (4 - len(bits[i:i + 4]))
@@ -87,32 +108,50 @@ def pack(pixels):
     return base64.b64encode(bytes(data)).decode("ascii")
 
 
-def main():
-    sheet = Image.open(SHEET).convert("RGBA")
+def sprite_block(frames, palette):
     rows = []
-    for pose in POSES:
-        images = []
-        for direction in range(8):
-            diagonal = direction % 2 == 1
-            # Gerade Bilder blicken nach Norden, diagonale nach Nordosten.
-            pixels = classify(sheet, pose + (10 if diagonal else 0), (0.7, -0.7) if diagonal else (0, -1))
-            images.append(pack(rotate(pixels, direction // 2)))
-        rows.append("  [" + ", ".join(f'"{image}"' for image in images) + "]")
-    block = (
+    for images in frames:
+        rows.append("  [" + ", ".join(f'"{pack(pixels, palette)}"' for pixels in images) + "]")
+    return (
         "// <sprites> erzeugt von bangle/tools/flysprites.py aus shared/assets/fly/flyex.png\n"
         f"const SPRITE_SIZE = {SIZE};\n"
         "// [Pose][Richtung]: Pose 0 sitzt mit eingeklappten Flügeln, 1–3 Flügelschlag, 4–8 Laufen; Richtung 0 = Norden, im Uhrzeigersinn.\n"
         "const SPRITES = [\n" + ",\n".join(rows) + "\n];\n"
         "// </sprites>"
     )
+
+
+def replace_block(source, name, block):
+    updated, count = re.subn(rf"// <{name}>.*?// </{name}>", lambda _: block, source, flags=re.S)
+    if count != 1:
+        raise SystemExit(f"Markierung // <{name}> ... // </{name}> fehlt in FliesClock.js")
+    return updated
+
+
+def main():
+    sheet = Image.open(SHEET).convert("RGBA")
+    frames = []
+    for pose in POSES:
+        images = []
+        for direction in range(8):
+            diagonal = direction % 2 == 1
+            # Gerade Bilder blicken nach Norden, diagonale nach Nordosten.
+            pixels = classify(sheet, pose + (10 if diagonal else 0), (0.7, -0.7) if diagonal else (0, -1))
+            images.append(rotate(pixels, direction // 2))
+        frames.append(images)
+
     with open(CLOCK, encoding="utf-8") as reader:
         source = reader.read()
-    updated, count = re.subn(r"// <sprites>.*?// </sprites>", lambda _: block, source, flags=re.S)
-    if count != 1:
-        raise SystemExit("Markierung // <sprites> ... // </sprites> fehlt in FliesClock.js")
+    source = replace_block(source, "sprites", sprite_block(frames, NORMAL))
     with open(CLOCK, "w", encoding="utf-8", newline="\n") as writer:
-        writer.write(updated)
+        writer.write(source)
     print("fertig:", CLOCK)
+
+    negative = replace_block(source, "sprites", sprite_block(frames, INVERTED))
+    negative = replace_block(negative, "colors", NEGATIVE_COLORS)
+    with open(NEGATIVE, "w", encoding="utf-8", newline="\n") as writer:
+        writer.write(NEGATIVE_HEADER + negative)
+    print("fertig:", NEGATIVE)
 
 
 if __name__ == "__main__":

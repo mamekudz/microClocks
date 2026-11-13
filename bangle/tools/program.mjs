@@ -54,14 +54,14 @@ export function listClockScripts(root, dir = root) {
  * @returns {string} absolute path inside the project
  */
 export function resolveScript(root, script) {
-	if (typeof script !== 'string' || !script.trim()) throw new Error('Kein Skript ausgewählt.');
+	if (typeof script !== 'string' || !script.trim()) throw new Error('No script selected.<context="task error"/>'.i18xTrans());
 	const rootResolved = resolve(root);
 	const full = resolve(rootResolved, script);
 	const prefix = rootResolved.endsWith(sep) ? rootResolved : rootResolved + sep;
 	if (full !== rootResolved && !full.startsWith(prefix)) {
-		throw new Error('Das Skript liegt außerhalb des Projekts.');
+		throw new Error('The script is outside the project.<context="task error"/>'.i18xTrans());
 	}
-	if (!full.toLowerCase().endsWith('.js')) throw new Error('Nur .js-Dateien können auf die Bangle.');
+	if (!full.toLowerCase().endsWith('.js')) throw new Error('Only .js files can go to the Bangle.<context="task error"/>'.i18xTrans());
 	return full;
 }
 
@@ -125,7 +125,7 @@ function writeCommand(fileName, chunk, offset, total) {
  */
 export function buildUpload(source, identity, install) {
 	const deviceSource = toDeviceSource(source);
-	if (!deviceSource.trim()) throw new Error('Das Skript ist leer.');
+	if (!deviceSource.trim()) throw new Error('The script is empty.<context="task error"/>'.i18xTrans());
 	const fileName = install ? identity.appFile : DEV_FILE;
 	/** @type {{ line: string, final?: boolean }[]} */
 	const commands = [{
@@ -147,7 +147,7 @@ export function buildUpload(source, identity, install) {
 			if (size === 1) break;
 			size = Math.max(1, Math.floor(size / 2));
 		}
-		if (!line) throw new Error('Ein Stück des Skripts lässt sich nicht klein genug schneiden.');
+		if (!line) throw new Error('A piece of the script cannot be cut small enough.<context="task error"/>'.i18xTrans());
 		commands.push({ line });
 		offset += size;
 	}
@@ -186,10 +186,13 @@ async function openCursorTab(url) {
 	});
 	if (opened?.ok) return 'Cursor';
 	if (opened?.code === 'command-not-allowed') {
-		throw new Error('Der Cursor-Browser ist noch nicht freigegeben. Fenster neu laden und den Task noch einmal starten.');
+		throw new Error('The Cursor browser is not enabled yet. Reload the window and start the task again.<context="task error"/>'.i18xTrans());
 	}
-	throw new Error(opened?.message || 'Der Tab in Cursor konnte nicht geöffnet werden.');
+	throw new Error(opened?.message || 'The tab in Cursor could not be opened.<context="task error"/>'.i18xTrans());
 }
+
+const written = (script) => '<script/> was written to the Bangle.<context="task log"/>'.i18xTrans({ script });
+const nothingWritten = () => 'Browser tab closed. Nothing was written to the watch.<context="task log"/>'.i18xTrans();
 
 /**
  * @param {import('node:http').IncomingMessage} request
@@ -203,7 +206,7 @@ function readBody(request, limit = 100_000) {
 		request.on('data', (chunk) => {
 			size += chunk.length;
 			if (size > limit) {
-				rejectBody(new Error('Anfrage ist zu groß.'));
+				rejectBody(new Error('Request too large.'));
 				request.destroy();
 				return;
 			}
@@ -319,40 +322,40 @@ export function startProgrammer(options) {
 					if (body.type === 'success') {
 						programmed = true;
 						progress(1, script);
-						finish(null, message || `${script} wurde auf die Bangle geschrieben.`);
+						finish(null, message || written(script));
 						return;
 					}
 					if (body.type === 'error') {
-						lastError = message || 'Die Uhr hat das Skript nicht angenommen.';
+						lastError = message || 'The watch did not accept the script.<context="task error"/>'.i18xTrans();
 						return;
 					}
-					if (programmed) finish(null, message || `${script} wurde auf die Bangle geschrieben.`);
+					if (programmed) finish(null, message || written(script));
 					else if (lastError) finish(new Error(lastError));
-					else finish(null, 'Browsertab geschlossen. Es wurde nichts auf die Uhr geschrieben.');
+					else finish(null, nothingWritten());
 					return;
 				}
 				response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-				response.end('Nicht gefunden');
+				response.end('Not found');
 			} catch (error) {
 				response.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
-				response.end(error instanceof Error ? error.message : 'Ungültige Anfrage');
+				response.end(error instanceof Error ? error.message : 'Invalid request');
 			}
 		});
 
 		const idleTimer = setInterval(() => {
 			if (!opened && Date.now() - lastSeen > 45_000) {
-				finish(new Error('Der Browsertab hat die Seite nicht geöffnet.'));
+				finish(new Error('The browser tab did not open the page.<context="task error"/>'.i18xTrans()));
 				return;
 			}
 			if (opened && Date.now() - lastSeen > 12_000) {
-				if (programmed) finish(null, `${script} wurde auf die Bangle geschrieben.`);
+				if (programmed) finish(null, written(script));
 				else if (lastError) finish(new Error(lastError));
-				else finish(null, 'Browsertab geschlossen. Es wurde nichts auf die Uhr geschrieben.');
+				else finish(null, nothingWritten());
 			}
 		}, 2000);
 
 		const maxTimer = setTimeout(() => {
-			finish(new Error('Zeitüberschreitung. Das Programmierfenster war zu lange offen.'));
+			finish(new Error('Timeout. The programming window was open too long.<context="task error"/>'.i18xTrans()));
 		}, 20 * 60 * 1000);
 
 		server.on('error', (error) => finish(error));
@@ -361,15 +364,15 @@ export function startProgrammer(options) {
 				const address = server.address();
 				const port = address && typeof address === 'object' ? address.port : 0;
 				const url = `http://127.0.0.1:${port}/`;
-				log(`${script} (${Buffer.byteLength(source)} Byte, ${upload.commands.length} Schritte)`);
+				log('<script/> (<bytes/> bytes, <steps/> steps)<context="task log"/>'.i18xTrans({ script, bytes: Buffer.byteLength(source), steps: upload.commands.length }));
 				log(install
-					? `Wird als Uhr installiert: ${identity.title} (${upload.fileName})`
-					: 'Testlauf: die bisherige Uhr bleibt nach einem Neustart erhalten.');
+					? 'Installing as clock: <title/> (<file/>)<context="task log"/>'.i18xTrans({ title: identity.title, file: upload.fileName })
+					: 'Test run: the previous clock comes back after a restart.<context="task log"/>'.i18xTrans());
 				log(url);
 				progress(0, script);
 				if (options.open !== false) {
 					openCursorTab(url).then(() => {
-						log('Tab in Cursor geöffnet. Dort auf „Verbinden und programmieren“ tippen.');
+						log('Tab opened in Cursor. Tap "Connect and program" there.<context="task log"/>'.i18xTrans());
 					}).catch((error) => {
 						finish(error instanceof Error ? error : new Error(String(error)));
 					});

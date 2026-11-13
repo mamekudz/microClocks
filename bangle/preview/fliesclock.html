@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en-US">
 <head>
 	<meta charset="utf-8">
 	<title>Bangle FliesClock</title>
@@ -10,7 +10,11 @@
 </head>
 <body>
 	<canvas id="glass" width="176" height="176"></canvas>
-	<p>Bangle.js 2 · 176 × 176 · 3-Bit-Farben · Klick scheucht die Fliegen auf · S schüttelt die Uhr</p>
+	<p data-i18x="bangle preview">Bangle.js 2 · 176 × 176 · 3-bit colours · click startles the flies · S shakes the watch</p>
+	<script type="module">
+		import { loadI18x, translateDocument } from '../../shared/i18x.js';
+		loadI18x('../../i18x/web').then(() => translateDocument());
+	</script>
 	<script>
 		// Nachbildung der Espruino-Grafik, soweit FliesClock.js sie benutzt. Farben sind 3-Bit-Werte (RGB-Bits).
 		const canvas = document.getElementById('glass');
@@ -41,6 +45,8 @@
 			},
 		};
 		const atob = window.atob.bind(window);
+		// Espruino-Globalobjekt; ohne WIDGETS übergeht hideWidgets die Statusleiste.
+		const global = window;
 		const E = { toArrayBuffer: (s) => Uint8Array.from(s, (c) => c.charCodeAt(0)).buffer };
 		const listeners = {};
 		const Bangle = { setUI() {}, on(event, fn) { listeners[event] = fn; }, removeListener() {}, loadWidgets() {}, isLocked: () => false };
@@ -53,7 +59,10 @@
 			if (event.key !== 's' && event.key !== 'S') return;
 			for (let i = 0; i < 3; i++) listeners.accel?.({ x: 0, y: 0, z: -1, diff: 2, mag: 2 });
 		});
-		fetch('../FliesClock.js', { cache: 'no-store' }).then((response) => response.text()).then((code) => eval(code));
+		// ?script=FliesClockNegative.js zeigt das Negativ.
+		const script = new URLSearchParams(location.search).get('script') || 'FliesClock.js';
+		document.title = `Bangle ${script.replace(/\.js$/, '')}`;
+		fetch(`../${script}`, { cache: 'no-store' }).then((response) => response.text()).then((code) => eval(code));
 	</script>
 </body>
 </html>

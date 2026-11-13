@@ -9,8 +9,8 @@ var minute_hand = {
   buffer : E.toArrayBuffer(atob("/////////////////////////////////////////////////////////////////////////w=="))
 };
 
-const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
-const MONTHS = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+// Wochentag und Monat in der Sprache, die auf der Uhr eingestellt ist (App "Languages"; ohne sie Englisch).
+const locale = require("locale");
 
 let intervalRef = null;
 const p180 = Math.PI/180;
@@ -77,8 +77,8 @@ function draw_line(text, size, y, alignY){
 }
 
 function draw_date(date){
-  const weekday = WEEKDAYS[date.getDay()];
-  const dayMonth = date.getDate() + ". " + MONTHS[date.getMonth()];
+  const weekday = locale.dow(date);
+  const dayMonth = date.getDate() + ". " + locale.month(date);
   const year = "" + date.getFullYear();
   draw_line(weekday, WEEK_SIZE, clock_center.y - 12, 1);
   draw_line(dayMonth, DATE_SIZE, clock_center.y + 12, -1);
