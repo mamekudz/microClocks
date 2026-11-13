@@ -20,6 +20,8 @@ Der Steam Workshop nimmt Programm-Wallpapers nicht an. Die fertigen Wallpapers g
 
 Installation: Die ZIP-Datei nach `steamapps/common/wallpaper_engine/projects/myprojects` entpacken, sodass dort ein Ordner wie `microClocks-ue-flies` entsteht. Dann Wallpaper Engine ganz beenden (Taskleiste → Beenden) und neu starten. Die Unreal-Wallpapers sind Programm-Wallpapers: unter „Installiert“ → „Ergebnisse filtern“ den Typ „Anwendung“ einschalten.
 
+Was sich je Version geändert hat, steht in [RELEASES.json](RELEASES.json) (en-US, deutsche Übersetzung in `i18x/gulp/releases/de-DE.json`).
+
 ## Uhren und Plattformen
 
 | Uhr | Bangle.js 2 | ESP32-Simulator und Web-Wallpaper | PC und Unreal-Wallpaper |
@@ -96,6 +98,7 @@ Quelltexte sind en-US, Übersetzungen liegen als i18x-Tabellen vor (zunächst De
 | Bereich | Übersetzungen |
 |---|---|
 | Gulp-Tasks, Formulare und Protokolle | `i18x/gulp/<Sprache>.json` |
+| Versionshinweise in `RELEASES.json` | `i18x/gulp/releases/<Sprache>.json` |
 | ESP32-Simulator und Bangle-Vorschau | `i18x/web/<Sprache>.json` |
 | Eigenschaften des Web-Wallpapers | `i18x/wallpaper/<Sprache>.json` |
 | Knopfleiste der Unreal-Uhr | `pc/FlyClock3D/Content/i18x/<Sprache>.json` |
@@ -125,7 +128,7 @@ Die Sprache folgt der Einstellung von Windows bzw. des Browsers; im Browser wäh
 
 ## Dokumentation
 
-Diese Datei `README.de-DE.src.md` ist die führende Quelle der README. Geplant ist eine Übersetzung nach en-US und die Zusammenführung beider Sprachen in `README.md`; ein Generator dafür existiert noch nicht. Bis dahin verweist `README.md` nur auf diese Datei.
+`README.de-DE.src.md` ist die führende Quelle der README. `README.md` enthält zuerst die englische Übersetzung und danach diesen deutschen Text mit um eine Ebene tieferen Überschriften. Beides wird von Hand zusammengeführt, einen Generator gibt es nicht: Inhaltliche Änderungen zuerst in `README.de-DE.src.md` vornehmen, dann in `README.md` den deutschen und den englischen Teil nachziehen.
 
 ## Rechte
 

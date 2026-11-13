@@ -200,7 +200,13 @@ Gewünscht ist ausdrücklich eine einfache Kopie, kein NAS-Rezept und keine ZIP-
 
 ## README
 
-`README.de-DE.src.md` ist die führende Quelle (deutsch). Später: Übersetzung nach en-US und Zusammenführung in `README.md`; bis dahin ist `README.md` nur ein zweisprachiger Verweis. Kein Generator vorhanden.
+`README.de-DE.src.md` ist die führende Quelle (deutsch). `README.md` = Sprachlinks, `## English` (Übersetzung, Unterabschnitte `###`) und `## Deutsch` (die Quelle ohne erste Zeile, Überschriften eine Ebene tiefer). Kein Generator im Repository: Änderungen erst in der Quelle, dann beide Teile in `README.md` von Hand nachziehen; der deutsche Teil muss der Quelle entsprechen.
+
+## Versionen (`RELEASES.json`)
+
+- `RELEASES.json` im Stamm nach dem Muster von BlueShift/esp2: `releases[]` mit `main`, `minor`, `revision`, `date` (`YYYY-MM-DD HH:MM`), `beta`, `info[]`; neueste Version oben. Texte en-US mit genau einem `<context="release info"/>`, Versionen, Pfade und Zahlen ohne Kontext.
+- Übersetzungen in `i18x/gulp/releases/de-DE.json`, Schlüssel = Text ohne Kontext. Keine übersetzten Parallelfassungen von `RELEASES.json`.
+- Git-Tag und GitHub-Release `v<main>.<minor>.<revision>`; Assets siehe Abschnitt Git. Erste Version: v0.1.0 (13.11.2026, beta). Es gibt keine µGulp-Tasks für Releases.
 
 ## Git
 

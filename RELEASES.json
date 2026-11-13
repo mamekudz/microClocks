@@ -1,0 +1,20 @@
+{
+	"releases": [
+		{
+			"main": 0,
+			"minor": 1,
+			"revision": 0,
+			"date": "2026-11-13 20:15",
+			"beta": true,
+			"info": [
+				"First public release: clocks made of flies and Oxyd marbles for Bangle.js 2, the Waveshare ESP32-S3-Touch-AMOLED-2.06 (browser simulator; the firmware is still a skeleton), Wallpaper Engine and the Windows PC.<context=\"release info\"/>",
+				"Two Unreal Engine 5 application wallpapers, Flies 3D and Oxyd 3D, as release downloads because the Steam Workshop does not accept application wallpapers; settings are made in an on-screen button bar with three save slots.<context=\"release info\"/>",
+				"Scanned flies walk with a tripod gait and beat their wings; Oxyd stones and glass marbles on forest, sand, grass or road; sound in four levels.<context=\"release info\"/>",
+				"Web wallpaper with all simulator faces and Wallpaper Engine properties for face, floor, size, sound and volume.<context=\"release info\"/>",
+				"Bangle.js 2 clocks: FliesClock in white on black and black on white, MarbleClock, OxydClock and two railway clocks; FliesClock is not yet tested on a real watch.<context=\"release info\"/>",
+				"Browser previews on GitHub Pages: ESP32 simulator with all faces, FliesClock preview of the Bangle display and Espruino emulator links for the other Bangle clocks.<context=\"release info\"/>",
+				"User interface texts are en-US sources with i18x; German translations for the µGulp tasks, the simulator, the web wallpaper and the Unreal button bar.<context=\"release info\"/>"
+			]
+		}
+	]
+}
