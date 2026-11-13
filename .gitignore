@@ -6,6 +6,10 @@ dist/
 .microgulp/logs/
 .microgulp/device-backups/
 .microgulp/setup-backups/
+.microgulp/gulpfile.before-*.mjs
+.microgulp/native-device.json
+.microgulp/parameters.json
+.microgulp/project-controls.json
 
 # ESP32 / PlatformIO
 esp32/firmware/.pio/
@@ -19,6 +23,10 @@ pc/FlyClock3D/Import/fly_loop.wav
 pc/FlyClock3D/Import/polyhaven/
 pc/FlyClock3D/Downloads/
 pc/FlyClock3D/Content/StarterContent/
+pc/FlyClock3D/Build/Windows/FileOpenOrder/
 *.sln
 .vs/
 __pycache__/
+
+# Unkomprimierte Originale der Vorschauvideos
+dev/media/*.original.*

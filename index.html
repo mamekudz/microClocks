@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>microClocks – Vorschau</title>
+	<style>
+		:root { color-scheme: dark; }
+		body { margin: 0; background: #121316; color: #d8d8d8; font: 16px/1.5 system-ui, sans-serif; }
+		main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 64px; }
+		h1 { margin: 0 0 4px; font-size: 2rem; color: #fff; }
+		h2 { margin: 48px 0 8px; color: #fff; }
+		a { color: #9cc7ff; }
+		.lead { margin: 0 0 16px; color: #aaa; }
+		.row { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+		.card { background: #1b1d22; border-radius: 12px; padding: 14px; flex: 1 1 260px; }
+		.card img { width: 100%; border-radius: 8px; display: block; }
+		.buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+		.buttons a { padding: 6px 12px; border-radius: 999px; background: #2a2d34; color: #eee; text-decoration: none; }
+		.buttons a:hover { background: #3a3e48; }
+		iframe { border: 0; border-radius: 12px; background: #000; }
+		.sim { width: 100%; max-width: 560px; height: 820px; }
+		.bangle { width: 100%; max-width: 560px; height: 620px; }
+		small { color: #888; }
+	</style>
+</head>
+<body>
+	<main>
+		<h1>microClocks</h1>
+		<p class="lead">Uhren aus Fliegen und Oxyd-Murmeln für Bangle.js 2, ESP32-S3-AMOLED, Wallpaper Engine und den PC.
+			<a href="https://github.com/mamekudz/microClocks">Quelltext</a> ·
+			<a href="https://github.com/mamekudz/microClocks/releases">Wallpaper zum Herunterladen</a></p>
+
+		<h2>ESP32-Simulator</h2>
+		<p>Das Zifferblatt der Waveshare-Uhr (410 × 502) im Browser. Mit der Maus auf das Glas drücken: Fliegen fliegen auf, Murmeln kippen; ein schneller Schnipser schüttelt sie.</p>
+		<div class="buttons">
+			<a href="esp32/sim/?face=flies" target="sim">Fliegen</a>
+			<a href="esp32/sim/?face=marbles" target="sim">Murmeln</a>
+			<a href="esp32/sim/?face=oxyd" target="sim">Oxyd</a>
+			<a href="esp32/sim/?face=oxyd-large" target="sim">Oxyd groß</a>
+			<a href="esp32/sim/?face=oxyd-floor" target="sim">Oxyd Boden</a>
+			<a href="esp32/sim/" target="_blank">eigenes Fenster</a>
+		</div>
+		<iframe class="sim" name="sim" src="esp32/sim/?face=flies" title="ESP32-Simulator"></iframe>
+
+		<h2>Bangle.js 2</h2>
+		<p>Die FliesClock läuft in einer Nachbildung des 176 × 176 großen 3-Bit-Displays: Klick scheucht die Fliegen auf, die Taste S schüttelt die Uhr.</p>
+		<div class="buttons">
+			<a href="bangle/preview/fliesclock.html?script=FliesClock.js" target="bangle">FliesClock (weiß auf schwarz)</a>
+			<a href="bangle/preview/fliesclock.html?script=FliesClockNegative.js" target="bangle">FliesClock (schwarz auf weiß)</a>
+		</div>
+		<iframe class="bangle" name="bangle" src="bangle/preview/fliesclock.html?script=FliesClock.js" title="Bangle-Vorschau"></iframe>
+		<p>Die übrigen Bangle-Uhren öffnen im offiziellen Espruino-Emulator; dort einmal „Bangle.js 2“ wählen.</p>
+		<div class="buttons">
+			<a href="https://www.espruino.com/ide/emulator.html?codeurl=https://raw.githubusercontent.com/mamekudz/microClocks/main/bangle/MarbleClock.js&amp;upload" target="_blank" rel="noopener">Murmeln</a>
+			<a href="https://www.espruino.com/ide/emulator.html?codeurl=https://raw.githubusercontent.com/mamekudz/microClocks/main/bangle/OxydClock.js&amp;upload" target="_blank" rel="noopener">Oxyd</a>
+			<a href="https://www.espruino.com/ide/emulator.html?codeurl=https://raw.githubusercontent.com/mamekudz/microClocks/main/bangle/BahnClock.js&amp;upload" target="_blank" rel="noopener">Bahnuhr</a>
+			<a href="https://www.espruino.com/ide/emulator.html?codeurl=https://raw.githubusercontent.com/mamekudz/microClocks/main/bangle/BahnClockNoSecounds.js&amp;upload" target="_blank" rel="noopener">Bahnuhr ohne Sekunden</a>
+			<a href="https://www.espruino.com/ide/emulator.html?codeurl=https://raw.githubusercontent.com/mamekudz/microClocks/main/bangle/FliesClock.js&amp;upload" target="_blank" rel="noopener">FliesClock im Emulator</a>
+		</div>
+
+		<h2>Wallpaper Engine</h2>
+		<div class="row">
+			<div class="card">
+				<img src="pc/FlyClock3D/wallpaper-preview-flies.jpg" alt="Fliegenuhr als Unreal-Wallpaper">
+				<p><strong>Fliegen 3D</strong> (Unreal Engine) – <a href="dev/media/FliesClockWallpaper.mp4">Video</a></p>
+			</div>
+			<div class="card">
+				<img src="pc/FlyClock3D/wallpaper-preview-oxyd.jpg" alt="Oxyd-Uhr als Unreal-Wallpaper">
+				<p><strong>Oxyd 3D</strong> (Unreal Engine): Oxyd-Steine oder Glasmurmeln</p>
+			</div>
+			<div class="card">
+				<img src="dev/media/FliesClock-esp32-sim.webp" alt="Fliegen weichen dem Finger aus">
+				<p><strong>Web-Wallpaper</strong> mit denselben Zifferblättern wie der Simulator – <a href="wallpaper/?face=flies" target="_blank">Vorschau</a></p>
+			</div>
+		</div>
+		<p>Programm-Wallpapers nimmt der Steam Workshop nicht an. Die Wallpapers gibt es deshalb unter <a href="https://github.com/mamekudz/microClocks/releases">Releases</a>: ZIP entpacken nach <code>steamapps/common/wallpaper_engine/projects/myprojects</code>, Wallpaper Engine neu starten und unter „Installiert“ → „Ergebnisse filtern“ den Typ „Anwendung“ einschalten.</p>
+		<p><small>Simulator und Vorschauen sind Nachbildungen im Browser und kein Test auf der echten Hardware.</small></p>
+	</main>
+</body>
+</html>
