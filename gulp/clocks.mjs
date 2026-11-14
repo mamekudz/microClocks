@@ -7,8 +7,8 @@ import { listClockScripts } from '../bangle/tools/program.mjs';
  * (shared/faces), `pc`: Zifferblatt von run.ps1. Fehlt eine Plattform, gibt es die Uhr dort nicht.
  */
 const CATALOG = [
-	{ value: 'flies', label: 'FliesClock (White on Black)', title: 'FliesClock (White on Black)', bangle: 'bangle/FliesClock.js', web: 'flies' },
-	{ value: 'flies-negative', label: 'FliesClock (Black on White)', title: 'FliesClock (Black on White)', bangle: 'bangle/FliesClockNegative.js' },
+	{ value: 'flies', label: 'FliesClock (White on Black)<context="clock name"/>', title: 'FliesClock (White on Black)', bangle: 'bangle/FliesClock.js', web: 'flies' },
+	{ value: 'flies-negative', label: 'FliesClock (Black on White)<context="clock name"/>', title: 'FliesClock (Black on White)', bangle: 'bangle/FliesClockNegative.js' },
 	// Die Unreal-Fliegen haben keine Farbvarianten, daher ein eigener Eintrag.
 	{ value: 'flies-3d', label: 'FliesClock 3D', pc: 'flies' },
 	{ value: 'marbles', label: 'Marbles<context="clock name"/>', bangle: 'bangle/MarbleClock.js', web: 'marbles', pc: 'marbles' },

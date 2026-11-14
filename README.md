@@ -39,7 +39,8 @@ The changes of each version are listed in [RELEASES.json](RELEASES.json).
 | Oxyd glass marbles | | | ✔ |
 | Railway clock, railway clock without seconds | ✔ | | |
 
-- **Bangle.js 2** (`bangle/`): Espruino scripts for the 176 × 176 3-bit display, with Fast Load. The fly clock sleeps while no fly is flying; touching or shaking it hard startles the flies.
+- **Bangle.js 2** (`bangle/`): Espruino scripts for the 176 × 176 3-bit display, with Fast Load. The fly clock sleeps while no fly is flying; touching or shaking it hard startles the flies. The two fly clocks are named "FliesClock (White on Black)" and "FliesClock (Black on White)".
+- **App Loader:** `bangle/bangleapps/` contains the sources for these two clocks and for Oxyd, each at version 0.01. They are not in the official Bangle App Loader yet. None of these clocks has been tested on a real watch.
 - **ESP32** (`esp32/`): firmware for the Waveshare ESP32-S3-Touch-AMOLED-2.06 (410 × 502) with PlatformIO. So far a skeleton with display and real-time clock; the faces run in the browser simulator `esp32/sim`.
 - **Wallpaper Engine, web** (`wallpaper/`): the same faces as a web wallpaper with settings for face, floor, size and sound.
 - **PC and Wallpaper Engine, Unreal** (`pc/FlyClock3D`): Unreal Engine 5 project with scanned flies that walk, fly and beat their wings, plus Oxyd stones and glass marbles on forest floor, sand, grass or road. As wallpapers there are two application wallpapers, "Flies 3D" and "Oxyd 3D".
@@ -113,7 +114,7 @@ The language follows the Windows or browser setting; in the browser `?lang=de-DE
 
 | Folder | Contents |
 |---|---|
-| `bangle/` | clocks for Bangle.js 2, tools for transferring and for generating the fly sprites, browser preview |
+| `bangle/` | clocks for Bangle.js 2, tools for transferring and for generating the fly sprites, browser preview, App Loader sources |
 | `esp32/` | PlatformIO firmware and browser simulator |
 | `pc/FlyClock3D/` | Unreal Engine 5 project, started via `run.ps1` |
 | `wallpaper/` | web wallpaper, packaged by `build.py` |
@@ -166,8 +167,8 @@ Was sich je Version geändert hat, steht in [RELEASES.json](RELEASES.json) (en-U
 
 | Uhr | Bangle.js 2 | ESP32-Simulator und Web-Wallpaper | PC und Unreal-Wallpaper |
 |---|:-:|:-:|:-:|
-| FliesClock (weiß auf schwarz) | ✔ | ✔ | |
-| FliesClock (schwarz auf weiß) | ✔ | | |
+| FliesClock (White on Black) | ✔ | ✔ | |
+| FliesClock (Black on White) | ✔ | | |
 | FliesClock 3D | | | ✔ |
 | Murmeln | ✔ | ✔ | ✔ |
 | Oxyd | ✔ | ✔ | |
@@ -175,7 +176,8 @@ Was sich je Version geändert hat, steht in [RELEASES.json](RELEASES.json) (en-U
 | Oxyd-Glasmurmeln | | | ✔ |
 | Bahnuhr, Bahnuhr ohne Sekunden | ✔ | | |
 
-- **Bangle.js 2** (`bangle/`): Espruino-Skripte für das 176 × 176 große 3-Bit-Display, mit Fast Load. Die Fliegenuhr schläft, solange keine Fliege fliegt; Berühren oder kräftiges Schütteln scheucht die Fliegen auf.
+- **Bangle.js 2** (`bangle/`): Espruino-Skripte für das 176 × 176 große 3-Bit-Display, mit Fast Load. Die Fliegenuhr schläft, solange keine Fliege fliegt; Berühren oder kräftiges Schütteln scheucht die Fliegen auf. Die beiden Fliegenuhren heißen „FliesClock (White on Black)“ und „FliesClock (Black on White)“.
+- **App Loader:** `bangle/bangleapps/` enthält die Quellen für diese beiden Uhren und für Oxyd, jeweils Version 0.01. Sie sind noch nicht im offiziellen Bangle-App-Loader. Auf einer echten Uhr ist keine dieser Uhren getestet.
 - **ESP32** (`esp32/`): Firmware für das Waveshare ESP32-S3-Touch-AMOLED-2.06 (410 × 502) mit PlatformIO. Bisher ein Grundgerüst mit Display und Echtzeituhr; die Zifferblätter laufen im Browser-Simulator `esp32/sim`.
 - **Wallpaper Engine, Web** (`wallpaper/`): dieselben Zifferblätter als Web-Wallpaper mit Einstellungen für Zifferblatt, Boden, Größe und Ton.
 - **PC und Wallpaper Engine, Unreal** (`pc/FlyClock3D`): Unreal-Engine-5-Projekt mit gescannten Fliegen, die laufen, fliegen und mit den Flügeln schlagen, sowie Oxyd-Steinen und Glasmurmeln auf Waldboden, Sand, Gras oder Straße. Als Wallpaper gibt es zwei Programm-Wallpapers, „Fliegen 3D“ und „Oxyd 3D“.
@@ -249,7 +251,7 @@ Die Sprache folgt der Einstellung von Windows bzw. des Browsers; im Browser wäh
 
 | Ordner | Inhalt |
 |---|---|
-| `bangle/` | Uhren für Bangle.js 2, Werkzeuge zur Übertragung und zum Erzeugen der Fliegen-Sprites, Browser-Vorschau |
+| `bangle/` | Uhren für Bangle.js 2, Werkzeuge zur Übertragung und zum Erzeugen der Fliegen-Sprites, Browser-Vorschau, Quellen für den App Loader |
 | `esp32/` | PlatformIO-Firmware und Browser-Simulator |
 | `pc/FlyClock3D/` | Unreal-Engine-5-Projekt, Start über `run.ps1` |
 | `wallpaper/` | Web-Wallpaper, gepackt von `build.py` |

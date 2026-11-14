@@ -4,6 +4,7 @@ und daraus die Negativ-Uhr bangle/FliesClockNegative.js.
 Aufruf: python bangle/tools/flysprites.py
 Ersetzt in FliesClock.js den Block zwischen "// <sprites>" und "// </sprites>". FliesClockNegative.js
 entsteht vollständig aus FliesClock.js mit eigenen Sprites und eigenem "// <colors>"-Block; nicht von Hand bearbeiten.
+Dazu die App-Loader-Icons app.png und app-icon.js (48 × 48) in bangle/bangleapps/fliesclock und fliesclockneg.
 
 Im Original ist der schwarze Körper transparent; sichtbar sind der halbtransparente
 helle Rand und die weißen Flügel- und Augenpixel. Für die 8 Farben der Bangle.js 2:
@@ -22,6 +23,13 @@ REPO = os.path.dirname(os.path.dirname(HERE))
 SHEET = os.path.join(REPO, "shared", "assets", "fly", "flyex.png")
 CLOCK = os.path.join(REPO, "bangle", "FliesClock.js")
 NEGATIVE = os.path.join(REPO, "bangle", "FliesClockNegative.js")
+APPS = os.path.join(REPO, "bangle", "bangleapps")
+ICON = 48
+# Icon-Paletten wie auf der Uhr (RGB): Index 0 ist hier der Hintergrund, nicht transparent.
+ICON_COLORS = {
+    "fliesclock": ((0, 0, 0), (0, 0, 255), (255, 255, 255), (255, 0, 0)),
+    "fliesclockneg": ((255, 255, 255), (0, 0, 0), (255, 255, 255), (255, 0, 0)),
+}
 
 FRAME = 30
 SIZE = 22
@@ -121,6 +129,37 @@ def sprite_block(frames, palette):
     )
 
 
+def write_icon(app, pixels, palette):
+    """Sitzende Fliege auf das Doppelte vergrößert; app-icon.js im Format des Espruino Image Converters
+    (Breite, Höhe, 2 bpp mit Palettenflag 64, Palette RGB565, Daten MSB zuerst), unkomprimiert."""
+    colors = ICON_COLORS[app]
+    offset = (FRAME - SIZE) // 2
+    margin = (ICON - 2 * SIZE) // 2
+    indices = [[0] * ICON for _ in range(ICON)]
+    for y in range(SIZE):
+        for x in range(SIZE):
+            kind = pixels.get((x + offset, y + offset))
+            index = palette[kind] if kind else 0
+            for dy in range(2):
+                for dx in range(2):
+                    indices[margin + 2 * y + dy][margin + 2 * x + dx] = index
+    folder = os.path.join(APPS, app)
+    os.makedirs(folder, exist_ok=True)
+    image = Image.new("RGB", (ICON, ICON))
+    image.putdata([colors[i] for row in indices for i in row])
+    image.save(os.path.join(folder, "app.png"))
+    data = bytearray([ICON, ICON, 2 | 64])
+    for r, g, b in colors:
+        rgb565 = (r >> 3) << 11 | (g >> 2) << 5 | b >> 3
+        data += bytes([rgb565 & 255, rgb565 >> 8])
+    flat = [i for row in indices for i in row]
+    for i in range(0, len(flat), 4):
+        data.append(flat[i] << 6 | flat[i + 1] << 4 | flat[i + 2] << 2 | flat[i + 3])
+    with open(os.path.join(folder, "app-icon.js"), "w", encoding="utf-8", newline="\n") as writer:
+        writer.write('atob("' + base64.b64encode(bytes(data)).decode("ascii") + '")\n')
+    print("fertig:", folder)
+
+
 def replace_block(source, name, block):
     updated, count = re.subn(rf"// <{name}>.*?// </{name}>", lambda _: block, source, flags=re.S)
     if count != 1:
@@ -152,6 +191,9 @@ def main():
     with open(NEGATIVE, "w", encoding="utf-8", newline="\n") as writer:
         writer.write(NEGATIVE_HEADER + negative)
     print("fertig:", NEGATIVE)
+
+    write_icon("fliesclock", frames[0][0], NORMAL)
+    write_icon("fliesclockneg", frames[0][0], INVERTED)
 
 
 if __name__ == "__main__":

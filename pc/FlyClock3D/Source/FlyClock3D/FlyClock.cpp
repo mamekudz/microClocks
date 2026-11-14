@@ -1,4 +1,4 @@
-﻿#include "FlyClock.h"
+#include "FlyClock.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "CanvasItem.h"

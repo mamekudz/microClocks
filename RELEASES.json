@@ -3,6 +3,17 @@
 		{
 			"main": 0,
 			"minor": 1,
+			"revision": 1,
+			"date": "2026-11-14 17:30",
+			"beta": true,
+			"info": [
+				"FliesClock (White on Black) and FliesClock (Black on White) are the names in the clock list, the web wallpaper, the simulator and the browser preview.<context=\"release info\"/>",
+				"Bangle App Loader sources for both FliesClock variants and for Oxyd are included at version 0.01. They are not in the official loader yet, and none of these clocks has been tested on a real watch.<context=\"release info\"/>"
+			]
+		},
+		{
+			"main": 0,
+			"minor": 1,
 			"revision": 0,
 			"date": "2026-11-13 20:15",
 			"beta": true,

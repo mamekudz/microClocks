@@ -154,6 +154,8 @@ Gewünscht ist ausdrücklich eine einfache Kopie, kein NAS-Rezept und keine ZIP-
 - Sprites: Originale aus `shared/assets/fly/flyex.png`, auf schwarzem Grund, 2 bpp mit Palette (transparent, Halo blau, Flügel weiß, Augen rot; Körper transparent). 8 Richtungen × 9 Posen (0 = sitzend aus Frame 5, weil Frame 4 bis auf den Kopf gleich ist, dort aber einen ausgestreckten Rüssel und keine roten Augen hat, 1–3 = Flugbilder, 4–8 = Laufen aus den Frames 5–9; im Flug wechselt `FLAP` gespreizte und eingeklappte Flügel, weil sich die Flugbilder kaum unterscheiden), je 22 × 22 Pixel, zusammen rund 8,7 KB als ArrayBuffer.
 - Der Block zwischen `// <sprites>` und `// </sprites>` wird erzeugt, nicht von Hand bearbeiten: `python bangle/tools/flysprites.py` (braucht Pillow).
 - Negativ `bangle/FliesClockNegative.js` (Uhr „FliesClock (Black on White)“, `flies-negative`): weißer Grund, Körper schwarz, Flügel weiß, Augen rot, ohne Rand. `flysprites.py` erzeugt die Datei vollständig aus `FliesClock.js` (eigene Sprites mit Körper statt Rand als Palettenindex 1, eigener Block `// <colors>` mit `BG` und `PALETTE`). Nur `FliesClock.js` von Hand ändern, danach das Skript laufen lassen.
+- App Loader (BangleApps): `bangle/bangleapps/fliesclock` und `fliesclockneg` enthalten `metadata.json`, `ChangeLog`, `README.md` (en-US), `screenshot.png` (176 × 176 aus der Browser-Vorschau) sowie `app.png` und `app-icon.js` (48 × 48, 2 bpp mit Palette, unkomprimiertes `atob`), die `flysprites.py` mit erzeugt. `app.js` liegt dort nicht; `node bangle/tools/bangleapps.mjs <BangleApps-Ordner>` kopiert alles samt Uhrskript nach `apps/<id>`. `listClockScripts` überspringt `bangleapps`. Fork `mamekudz/BangleApps` (schlanke Kopie in `C:\Projects\BangleApps`, Branch `fliesclock`); geprüft mit `node bin/sanitycheck.js` (braucht dort `acorn` und `apps/locale`). Alles in BangleApps steht unter MIT, auch die Fliegen-Sprites (vom Nutzer freigegeben). Bei neuer Version Versionsnummer in `metadata.json` und `ChangeLog` gemeinsam erhöhen.
+- `bangle/bangleapps/oxydclock` ist die Uhr „Oxyd“ (`OxydClock.js`). Screenshot und Icon sind aus den Ziffernbildern in `bangle/OxydClock/` zusammengesetzt; `app-icon.js` ist 48 × 48, 1 bpp, unkomprimiertes `atob`. Dieselbe Exportzeile kopiert sie mit.
 - Vorschau: Task `previewBangle` bzw. `bangle/preview/fliesclock.html` (`?script=FliesClockNegative.js` für das Negativ). Sie bildet nur die benutzten Grafik- und Bangle-Aufrufe nach (`drawImage` mit Palette, `toColor`, `setBgColor`, `atob`, `E.toArrayBuffer`). Auf der echten Uhr noch nicht getestet.
 
 ## ESP32 (Waveshare ESP32-S3-Touch-AMOLED-2.06)
@@ -206,7 +208,7 @@ Gewünscht ist ausdrücklich eine einfache Kopie, kein NAS-Rezept und keine ZIP-
 
 - `RELEASES.json` im Stamm nach dem Muster von BlueShift/esp2: `releases[]` mit `main`, `minor`, `revision`, `date` (`YYYY-MM-DD HH:MM`), `beta`, `info[]`; neueste Version oben. Texte en-US mit genau einem `<context="release info"/>`, Versionen, Pfade und Zahlen ohne Kontext.
 - Übersetzungen in `i18x/gulp/releases/de-DE.json`, Schlüssel = Text ohne Kontext. Keine übersetzten Parallelfassungen von `RELEASES.json`.
-- Git-Tag und GitHub-Release `v<main>.<minor>.<revision>`; Assets siehe Abschnitt Git. Erste Version: v0.1.0 (13.11.2026, beta). Es gibt keine µGulp-Tasks für Releases.
+- Git-Tag und GitHub-Release `v<main>.<minor>.<revision>`; Assets siehe Abschnitt Git. Erste Version: v0.1.0 (13.11.2026, beta). Aktuell: v0.1.1 (14.11.2026, beta). Es gibt keine µGulp-Tasks für Releases.
 
 ## Git
 

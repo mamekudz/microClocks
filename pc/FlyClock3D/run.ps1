@@ -1,4 +1,4 @@
-﻿# Baut das Projekt, lädt und importiert bei Bedarf die Assets und startet die Uhr im Fenster 820 × 1004.
+# Baut das Projekt, lädt und importiert bei Bedarf die Assets und startet die Uhr im Fenster 820 × 1004.
 #   .\run.ps1            bauen und starten
 #   .\run.ps1 -Setup     Materialien, Summton, Waldszene und Fliegenscan neu anlegen
 #   .\run.ps1 -closeup   Nahansicht der Ziffern

@@ -159,6 +159,8 @@
   "Backed up to <folder/><context=\"task log\"/>": "Gesichert nach <folder/>",
   "<command/> exited with code <code/>.<context=\"task error\"/>": "<command/> endete mit Code <code/>.",
   "No IDE tab (<code/>: <message/>), opening the default browser.<context=\"task log\"/>": "Kein Tab in der IDE (<code/>: <message/>), öffne den Standardbrowser.",
+  "FliesClock (White on Black)<context=\"clock name\"/>": "FliesClock (White on Black)",
+  "FliesClock (Black on White)<context=\"clock name\"/>": "FliesClock (Black on White)",
   "Marbles<context=\"clock name\"/>": "Murmeln",
   "Oxyd glass marbles<context=\"clock name\"/>": "Oxyd-Glasmurmeln",
   "Oxyd large<context=\"clock name\"/>": "Oxyd groß",
@@ -227,5 +229,8 @@
   "<script/> (<bytes/> bytes, <steps/> steps)<context=\"task log\"/>": "<script/> (<bytes/> Byte, <steps/> Schritte)",
   "Installing as clock: <title/> (<file/>)<context=\"task log\"/>": "Wird als Uhr installiert: <title/> (<file/>)",
   "Test run: the previous clock comes back after a restart.<context=\"task log\"/>": "Testlauf: die bisherige Uhr bleibt nach einem Neustart erhalten.",
-  "Tab opened in Cursor. Tap \"Connect and program\" there.<context=\"task log\"/>": "Tab in Cursor geöffnet. Dort auf „Verbinden und programmieren“ tippen."
+  "Tab opened in Cursor. Tap \"Connect and program\" there.<context=\"task log\"/>": "Tab in Cursor geöffnet. Dort auf „Verbinden und programmieren“ tippen.",
+  "<path/> is not a BangleApps checkout (apps folder missing).<context=\"task error\"/>": "<path/> ist keine BangleApps-Arbeitskopie (Ordner apps fehlt).",
+  "Usage: node bangle/tools/bangleapps.mjs [BangleApps folder]<context=\"task error\"/>": "Aufruf: node bangle/tools/bangleapps.mjs [BangleApps-Ordner]",
+  "Written: <path/><context=\"task log\"/>": "Geschrieben: <path/>"
 }

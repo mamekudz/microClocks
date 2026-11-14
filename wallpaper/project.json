@@ -13,7 +13,7 @@
 				"type": "combo",
 				"value": "flies",
 				"options": [
-					{ "label": "FliesClock", "value": "flies" },
+					{ "label": "FliesClock (White on Black)", "value": "flies" },
 					{ "label": "Marbles", "value": "marbles" },
 					{ "label": "Oxyd", "value": "oxyd" },
 					{ "label": "Oxyd large", "value": "oxyd-large" },

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { Ide } from 'gulp-mu-gulp-api';
 
 const PAGE_PATH = fileURLToPath(new URL('./flasher.html', import.meta.url));
-const SKIP_DIRS = new Set(['node_modules', '.microgulp', '.git', 'tools', 'assets']);
+const SKIP_DIRS = new Set(['node_modules', '.microgulp', '.git', 'tools', 'assets', 'bangleapps']);
 const MAX_COMMAND_BYTES = 420;
 const DEV_FILE = 'devclock.app.js';
 
